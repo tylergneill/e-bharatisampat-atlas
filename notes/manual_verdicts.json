@@ -1,0 +1,115 @@
+{
+  "_README": [
+    "HAND-CHECKED VERDICTS. Nothing writes this file but a person.",
+    "",
+    "The audit measures what it can. Some things it cannot: whether a page that",
+    "returned 200 without a text container was a login wall, or whether a work",
+    "the reader denies has text nonetheless ships a machine-generated PDF. Both",
+    "were settled by opening the page. This is where that judgment is recorded",
+    "so the About page can report it instead of filing every case under 'the",
+    "source has no text'.",
+    "",
+    "Rules, so this cannot rot the way a hand-typed figure does:",
+    "  1. A verdict here NARROWS a finding the audit already made. It can never",
+    "     add a work the measurement did not flag -- audit.py errors if it does.",
+    "  2. If a later fetch contradicts a verdict (text arrives for a work marked",
+    "     no_text), the audit FAILS rather than publishing the stale claim.",
+    "  3. Every entry carries who checked it and when. An undated verdict is",
+    "     indistinguishable from a guess.",
+    "",
+    "`no_devanagari` records the hand-check of the OTHER finding: works whose",
+    "text carries no Devanagari. These are NOT consumed by the audit -- that",
+    "finding is measured, and this only records WHICH KIND of non-Devanagari",
+    "each one turned out to be, so the reading is not lost and the next person",
+    "can see what was looked at rather than redoing it."
+  ],
+
+  "verdicts": {
+    "1450":  {"verdict": "no_text",       "checked": "2026-09-04", "by": "tyler"},
+    "1471":  {"verdict": "no_text",       "checked": "2026-09-04", "by": "tyler"},
+    "1629":  {"verdict": "no_text",       "checked": "2026-09-04", "by": "tyler"},
+    "1773":  {"verdict": "no_text",       "checked": "2026-09-04", "by": "tyler"},
+    "1811":  {"verdict": "no_text",       "checked": "2026-09-04", "by": "tyler"},
+    "1864":  {"verdict": "no_text",       "checked": "2026-09-04", "by": "tyler"},
+    "3174":  {"verdict": "no_text",       "checked": "2026-09-04", "by": "tyler"},
+    "3609":  {"verdict": "no_text",       "checked": "2026-09-04", "by": "tyler"},
+    "10236": {"verdict": "no_text",       "checked": "2026-09-04", "by": "tyler"},
+    "11956": {"verdict": "no_text",       "checked": "2026-09-04", "by": "tyler"},
+
+    "2495":  {"verdict": "no_text",       "checked": "2026-09-06", "by": "tyler",
+              "note": "read_chapter serves only site chrome -- visitor counter, footer nav, contact block -- and no book. 505 content bytes, identical across this group but for the counter digits. Refetched 2026-09-06: the counter advanced, so the page is live; there is still no text on it."},
+    "2501":  {"verdict": "no_text",       "checked": "2026-09-06", "by": "tyler", "note": "Footer chrome only; see 2495."},
+    "2974":  {"verdict": "no_text",       "checked": "2026-09-06", "by": "tyler", "note": "Footer chrome only; see 2495."},
+    "3563":  {"verdict": "no_text",       "checked": "2026-09-06", "by": "tyler", "note": "Footer chrome only; see 2495."},
+    "3582":  {"verdict": "no_text",       "checked": "2026-09-06", "by": "tyler", "note": "Footer chrome only; see 2495."},
+    "3590":  {"verdict": "no_text",       "checked": "2026-09-06", "by": "tyler", "note": "Footer chrome only; see 2495."},
+    "3595":  {"verdict": "no_text",       "checked": "2026-09-06", "by": "tyler", "note": "Footer chrome only; see 2495."},
+    "3599":  {"verdict": "no_text",       "checked": "2026-09-06", "by": "tyler", "note": "Footer chrome only; see 2495."},
+    "3607":  {"verdict": "no_text",       "checked": "2026-09-06", "by": "tyler", "note": "Footer chrome only; see 2495."},
+    "3612":  {"verdict": "no_text",       "checked": "2026-09-06", "by": "tyler", "note": "Footer chrome only; see 2495."},
+    "3613":  {"verdict": "no_text",       "checked": "2026-09-06", "by": "tyler", "note": "Footer chrome only; see 2495."},
+    "3709":  {"verdict": "no_text",       "checked": "2026-09-06", "by": "tyler", "note": "Footer chrome only; see 2495."},
+    "3805":  {"verdict": "no_text",       "checked": "2026-09-06", "by": "tyler", "note": "Footer chrome only; see 2495."},
+    "3940":  {"verdict": "no_text",       "checked": "2026-09-06", "by": "tyler", "note": "Footer chrome only; see 2495."},
+    "5263":  {"verdict": "no_text",       "checked": "2026-09-04", "by": "tyler"},
+    "8747":  {"verdict": "no_text",       "checked": "2026-09-04", "by": "tyler"},
+
+    "1162":  {"verdict": "pdf_only_text", "checked": "2026-09-04", "by": "tyler",
+              "note": "978pp. The reader denies text, but the downloadable PDF is machine-generated rather than a scan, so the text exists in some recoverable form -- extraction, or failing that OCR of a clean digital source."},
+    "1452":  {"verdict": "pdf_only_text", "checked": "2026-09-04", "by": "tyler",
+              "note": "316pp. Same as 1162."}
+  },
+
+  "labels": {
+    "no_text":        "confirmed to have no text",
+    "pdf_only_text":  "text exists only as a machine-generated PDF"
+  },
+
+  "no_devanagari": {
+    "1323":  {"kind": "pre_iast_or_ocr_corrupted", "checked": "2026-09-07", "by": "tyler"},
+    "1341":  {"kind": "pre_iast_or_ocr_corrupted", "checked": "2026-09-07", "by": "tyler"},
+    "1380":  {"kind": "pre_iast_or_ocr_corrupted", "checked": "2026-09-07", "by": "tyler"},
+    "2305":  {"kind": "pre_iast_or_ocr_corrupted", "checked": "2026-09-07", "by": "tyler"},
+    "2367":  {"kind": "pre_iast_or_ocr_corrupted", "checked": "2026-09-07", "by": "tyler"},
+    "2369":  {"kind": "pre_iast_or_ocr_corrupted", "checked": "2026-09-07", "by": "tyler"},
+    "4116":  {"kind": "pre_iast_or_ocr_corrupted", "checked": "2026-09-07", "by": "tyler"},
+    "4611":  {"kind": "pre_iast_or_ocr_corrupted", "checked": "2026-09-07", "by": "tyler"},
+
+    "3284":  {"kind": "legacy_font_encoding",      "checked": "2026-09-07", "by": "tyler",
+              "note": "Balaram, with other OCR junk mixed in."},
+    "4135":  {"kind": "legacy_font_encoding",      "checked": "2026-09-07", "by": "tyler",
+              "note": "Balaram: the page reads `maingalam prajnaam` for mangalam prajnam."},
+    "4233":  {"kind": "legacy_font_encoding",      "checked": "2026-09-07", "by": "tyler",
+              "note": "Devanagari in a pre-Unicode font, a different one from Balaram."},
+
+    "1255":  {"kind": "english_or_german",         "checked": "2026-09-07", "by": "tyler"},
+    "1354":  {"kind": "english_or_german",         "checked": "2026-09-07", "by": "tyler"},
+    "1527":  {"kind": "english_or_german",         "checked": "2026-09-07", "by": "tyler",
+              "note": "Roth's 1852 German edition; the file is also UTF-8 read as Latin-1."},
+    "1664":  {"kind": "english_or_german",         "checked": "2026-09-07", "by": "tyler"},
+    "1707":  {"kind": "english_or_german",         "checked": "2026-09-07", "by": "tyler"},
+    "3384":  {"kind": "english_or_german",         "checked": "2026-09-07", "by": "tyler"},
+    "3388":  {"kind": "english_or_german",         "checked": "2026-09-07", "by": "tyler"},
+    "3475":  {"kind": "english_or_german",         "checked": "2026-09-07", "by": "tyler"},
+    "7589":  {"kind": "english_or_german",         "checked": "2026-09-07", "by": "tyler"},
+    "7668":  {"kind": "english_or_german",         "checked": "2026-09-07", "by": "tyler"},
+    "7701":  {"kind": "english_or_german",         "checked": "2026-09-07", "by": "tyler"},
+    "8449":  {"kind": "english_or_german",         "checked": "2026-09-07", "by": "tyler"},
+    "8768":  {"kind": "english_or_german",         "checked": "2026-09-07", "by": "tyler"},
+    "8782":  {"kind": "english_or_german",         "checked": "2026-09-07", "by": "tyler"},
+    "8785":  {"kind": "english_or_german",         "checked": "2026-09-07", "by": "tyler"},
+    "8788":  {"kind": "english_or_german",         "checked": "2026-09-07", "by": "tyler"},
+    "8791":  {"kind": "english_or_german",         "checked": "2026-09-07", "by": "tyler"},
+    "8817":  {"kind": "english_or_german",         "checked": "2026-09-07", "by": "tyler",
+              "note": "In the 2026-09-07 refetch of works carrying an unverified cursor -- may leave this finding."},
+
+    "1991":  {"kind": "ocr_noise_only",            "checked": "2026-09-07", "by": "tyler"}
+  },
+
+  "no_devanagari_kinds": {
+    "pre_iast_or_ocr_corrupted": "Sanskrit transliterated in a pre-IAST scheme, or in IAST an OCR pass has since corrupted",
+    "legacy_font_encoding":      "Devanagari stored in a pre-Unicode font encoding such as Balaram",
+    "english_or_german":         "written in English or German, whatever the subject",
+    "ocr_noise_only":            "OCR noise; no recoverable text of any kind"
+  }
+}
