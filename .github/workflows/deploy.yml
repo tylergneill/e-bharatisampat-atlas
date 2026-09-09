@@ -1,0 +1,46 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  # Lets you re-run a deploy from the Actions tab without pushing a commit —
+  # the escape hatch the legacy Pages builder never gave us.
+  workflow_dispatch:
+
+# Least privilege: read the repo, mint an OIDC token, publish to Pages.
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Let an in-flight deploy finish rather than cancelling it, but never run two
+# at once. A stuck run here can be cancelled from the UI, unlike the legacy builder.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      # A smoke test, not a correctness check: docs/ has no build step, so a
+      # truncated or half-written commit would otherwise ship as-is. It reads
+      # only what is committed — no data/, no network, no pipeline imports.
+      - name: Sanity-check docs/
+        run: python3 .github/scripts/check_docs.py
+
+      - uses: actions/configure-pages@v5
+
+      # The site is dependency-free static HTML/JS served as-is, so docs/
+      # ships verbatim.
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: 'docs'
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
