@@ -383,7 +383,7 @@ def main() -> None:
               f"est {rec['synthetic']:>3}  "
               f"snapshot {rec['in_snapshot']:>4}/{rec['scrapeable']:>4} unicode "
               f"= {rec['in_snapshot_pct']:.0f}%")
-    print(f"wrote: {args.out} ({args.out.stat().st_size / 1024:.0f} KB)")
+    print(f"wrote: {args.out} ({args.out.stat().st_size / 1e3:.0f} KB)")
 
 
 if __name__ == "__main__":
