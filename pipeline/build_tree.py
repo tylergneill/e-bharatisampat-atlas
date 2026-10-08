@@ -182,8 +182,9 @@ def work_from_metadata(record: dict, sizes: dict[str, dict],
     return work
 
 
-def stamp_version(log_path: Path, version_path: Path, tree_path: Path) -> str | None:
-    """Write when the corpus was fetched into docs/VERSION.
+def stamp_version(log_path: Path, version_path: Path, tree_path: Path,
+                  stats: dict) -> str | None:
+    """Write when the corpus was fetched into docs/VERSION and into the tree.
 
     `__content_version__` is the date the newest book in the corpus was
     fetched, read from the fetch journal -- the scrape records its own date, so
@@ -192,31 +193,44 @@ def stamp_version(log_path: Path, version_path: Path, tree_path: Path) -> str | 
     to a file only humans update, and a stale date is plausible enough to skim
     past.
 
+    The same date goes into `all_stats.sourced` (`stats` is that block),
+    beside the figures it dates: Sāgarasaṅgama's home card reads it from the
+    published tree (its CONTRACT.md), and taking both from one value in one
+    place is what keeps that card's "as of" and this site's "data last
+    sourced" from disagreeing. Call it before the tree is written. Without a
+    journal on this machine the date already in docs/VERSION is reused, so
+    the tree never drops the field, and VERSION itself is left alone.
+
     `__data_version__` is today: when the pipeline last ran.
 
     Only stamped for the real track. `build_snapshot_tree` writes its own file
     and must never relabel the site's currency with the borrowed snapshot's.
     """
-    if tree_path != TREE_PATH or not log_path.exists():
+    if tree_path != TREE_PATH:
         return None
-    newest = ""
-    with log_path.open(encoding="utf-8") as handle:
-        for line in handle:
-            if not line.strip():
-                continue
-            fetched = json.loads(line).get("fetched_at") or ""
-            if fetched > newest:
-                newest = fetched
-    if not newest:
-        return None
-    content = newest[:10]
-
     fields = {}
     if version_path.exists():
         for line in version_path.read_text(encoding="utf-8").splitlines():
             if "=" in line:
                 key, _, value = line.partition("=")
                 fields[key.strip()] = value.strip().strip("\"'")
+
+    newest = ""
+    if log_path.exists():
+        with log_path.open(encoding="utf-8") as handle:
+            for line in handle:
+                if not line.strip():
+                    continue
+                fetched = json.loads(line).get("fetched_at") or ""
+                if fetched > newest:
+                    newest = fetched
+    content = newest[:10] if newest else fields.get("__content_version__")
+    if not content:
+        return None
+    stats["sourced"] = content
+    if not newest:
+        return content
+
     fields["__data_version__"] = datetime.date.today().isoformat()
     fields["__content_version__"] = content
     fields.setdefault("__code_version__", "0.1.0")
@@ -264,10 +278,12 @@ def main() -> int:
     tree = build_axes([work_from_metadata(r, sizes, empty, has_text)
                        for r in records],
                       "metadata")
+    # Before `write`: the date lands in the tree as well as in docs/VERSION.
+    stamped = stamp_version(args.log, VERSION_PATH, args.out, tree["all_stats"])
     write(tree, args.out)
     report(tree, args.out)
-    if stamped := stamp_version(args.log, VERSION_PATH, args.out):
-        print(f"  content version: {stamped} (newest fetch)")
+    if stamped:
+        print(f"  content version: {stamped} (newest fetch; also all_stats.sourced)")
     return 0
 
 
