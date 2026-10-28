@@ -12,4 +12,6 @@ delete step. **Check any of it against the code before acting** — these
 documents stopped being maintained when their status line was written, and
 where one contradicts the pipeline, the pipeline is right.
 
-Right now that is just `todo.md`, the backlog spine.
+Right now that is `todo.md`, the backlog spine, and
+`text-backfill-2026.md`, a finished check of whether 2026's PDF-only uploads
+are gaining text, waiting on promotion.
