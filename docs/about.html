@@ -313,15 +313,20 @@
 
         <h3 id="scraping-metadata">Scraping Metadata</h3>
         <p>
-          The individual metadata pages are the primary source of the most essential information:
-          title, author, category and subcategory, serial number, and content links.
-          The quickest way to get a complete listing of these metadata page links
-          is to walk the top-level "E-Books" and "Unicode Books" browse results.
-          After deduping the overlap, it's trivial to parse the relevant fields.
+          The quickest way to a complete list of items is to walk the site's "E-Books" and "Unicode Books" shelves.
+          These return the most essential information directly:
+          serial number, title, author, category and subcategory, plus publisher, contributor, and language.
+          Proofreading status is determined by whether a searchable text appears on the "Unicode Books" or the "AI-converted books" shelf.
+          Walking all three takes about 150 requests, or roughly 15 minutes.
         </p>
         <p>
-          With polite scraping (2 seconds per request), this is done in about 22,000 seconds, or 6 hours.
-          The vast majority of the Atlas is constructed on this basis.
+          The individual metadata pages remain the only source for the remaining fields
+          (pages, publication year, printer, editors, commentators, translator)
+          and for whether a text is flat or divided into chapters.
+          With polite scraping (2 seconds per request), fetching every one takes about 6 hours.
+        </p>
+        <p>
+          The vast majority of the Atlas is constructed on the basis of this metadata.
         </p>
 
         <h3 id="calculating-size">Calculating Size Information</h3>
