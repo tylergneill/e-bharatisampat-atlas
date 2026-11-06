@@ -74,8 +74,10 @@
 
         <h3 id="overlapping-collections">Two Overlapping Collections: Searchable Texts and PDFs</h3>
         <p>
-          Ebharatisampat.in holds <strong><span data-stat="total">11,066</span> distinct items</strong> as indicated by "serial" number.
-          These items contain either searchable text ("Unicode Book"), a PDF ("E-Book"), or both.
+          Ebharatisampat.in holds <strong><span data-stat="total">11,212</span> distinct items</strong> as indicated by "serial" number.
+          These items contain either searchable text (shelved as "Unicode Books" if proofread, "AI-converted books" if not), a PDF ("E-Books"), or both.
+          Every "AI-converted" item (<span data-stat="ai_shelf">1,364</span>) also has a PDF and shows up under "E-Books,"
+          but only <span data-stat="unicode_shelf_pdf">2,597</span> of <span data-stat="unicode_shelf">4,242</span> "Unicode Books" do.
         </p>
 
         <figure class="venn-figure">
@@ -85,8 +87,8 @@
 
             <text x="60" y="6" class="venn-label">Total Texts</text>
             <text x="560" y="6" class="venn-label">Total PDFs</text>
-            <text x="60" y="31" class="venn-total" data-stat="text">5,557</text>
-            <text x="560" y="31" class="venn-total" data-stat="pdf">9,421</text>
+            <text x="60" y="31" class="venn-total" data-stat="text">5,606</text>
+            <text x="560" y="31" class="venn-total" data-stat="pdf">9,567</text>
 
             <circle cx="262" cy="105" r="78" class="venn-circle venn-uni" />
             <circle cx="366" cy="105" r="92" class="venn-circle venn-pdf" />
@@ -97,9 +99,9 @@
 
             <text x="60" y="95" class="venn-count" data-stat="text_only">1,645</text>
             <text x="60" y="112" class="venn-cap">text only</text>
-            <text x="305" y="95" class="venn-count venn-both" data-stat="both">3,912</text>
+            <text x="305" y="95" class="venn-count venn-both" data-stat="both">3,961</text>
             <text x="305" y="112" class="venn-cap venn-both">both</text>
-            <text x="560" y="95" class="venn-count" data-stat="pdf_only">5,509</text>
+            <text x="560" y="95" class="venn-count" data-stat="pdf_only">5,606</text>
             <text x="560" y="112" class="venn-cap">pdf only</text>
 
             <text x="60" y="142" class="venn-rowlabel">example: three</text>
@@ -152,22 +154,22 @@
                 </tr>
               </thead>
               <tbody>
-                <tr><td style="padding:2px 12px 2px 0;"><code>title</code></td><td style="padding:2px 12px 2px 0; text-align:right;"><span data-stat="cov_title">11,066</span></td><td style="padding:2px 0; text-align:right;"><span data-stat="covpct_title">100.0</span>%</td></tr>
-                <tr><td style="padding:2px 12px 2px 0;"><code>domain</code></td><td style="padding:2px 12px 2px 0; text-align:right;"><span data-stat="cov_domain">11,066</span></td><td style="padding:2px 0; text-align:right;"><span data-stat="covpct_domain">100.0</span>%</td></tr>
-                <tr><td style="padding:2px 12px 2px 0;"><code>language</code></td><td style="padding:2px 12px 2px 0; text-align:right;"><span data-stat="cov_language">11,064</span></td><td style="padding:2px 0; text-align:right;"><span data-stat="covpct_language">100.0</span>%</td></tr>
-                <tr><td style="padding:2px 12px 2px 0;"><code>sub_domain</code></td><td style="padding:2px 12px 2px 0; text-align:right;"><span data-stat="cov_sub_domain">11,061</span></td><td style="padding:2px 0; text-align:right;"><span data-stat="covpct_sub_domain">100.0</span>%</td></tr>
-                <tr><td style="padding:2px 12px 2px 0;"><code>pages</code></td><td style="padding:2px 12px 2px 0; text-align:right;"><span data-stat="cov_pages">9,402</span></td><td style="padding:2px 0; text-align:right;"><span data-stat="covpct_pages">85.0</span>%</td></tr>
-                <tr><td style="padding:2px 12px 2px 0;"><code>publish_year</code></td><td style="padding:2px 12px 2px 0; text-align:right;"><span data-stat="cov_publish_year">7,739</span></td><td style="padding:2px 0; text-align:right;"><span data-stat="covpct_publish_year">69.9</span>%</td></tr>
-                <tr><td style="padding:2px 12px 2px 0;"><code>author</code></td><td style="padding:2px 12px 2px 0; text-align:right;"><span data-stat="cov_author">7,178</span></td><td style="padding:2px 0; text-align:right;"><span data-stat="covpct_author">64.9</span>%</td></tr>
-                <tr><td style="padding:2px 12px 2px 0;"><code>printer</code></td><td style="padding:2px 12px 2px 0; text-align:right;"><span data-stat="cov_printer">6,993</span></td><td style="padding:2px 0; text-align:right;"><span data-stat="covpct_printer">63.2</span>%</td></tr>
-                <tr><td style="padding:2px 12px 2px 0;"><code>publisher</code></td><td style="padding:2px 12px 2px 0; text-align:right;"><span data-stat="cov_publisher">6,260</span></td><td style="padding:2px 0; text-align:right;"><span data-stat="covpct_publisher">56.6</span>%</td></tr>
-                <tr><td style="padding:2px 12px 2px 0;"><code>editor</code></td><td style="padding:2px 12px 2px 0; text-align:right;"><span data-stat="cov_editor">5,164</span></td><td style="padding:2px 0; text-align:right;"><span data-stat="covpct_editor">46.7</span>%</td></tr>
-                <tr><td style="padding:2px 12px 2px 0;"><code>books_contributor</code></td><td style="padding:2px 12px 2px 0; text-align:right;"><span data-stat="cov_books_contributor">3,679</span></td><td style="padding:2px 0; text-align:right;"><span data-stat="covpct_books_contributor">33.2</span>%</td></tr>
-                <tr><td style="padding:2px 12px 2px 0;"><code>primary_commentator</code></td><td style="padding:2px 12px 2px 0; text-align:right;"><span data-stat="cov_primary_commentator">2,384</span></td><td style="padding:2px 0; text-align:right;"><span data-stat="covpct_primary_commentator">21.5</span>%</td></tr>
-                <tr><td style="padding:2px 12px 2px 0;"><code>commentary_name</code></td><td style="padding:2px 12px 2px 0; text-align:right;"><span data-stat="cov_commentary_name">1,683</span></td><td style="padding:2px 0; text-align:right;"><span data-stat="covpct_commentary_name">15.2</span>%</td></tr>
-                <tr><td style="padding:2px 12px 2px 0;"><code>translator</code></td><td style="padding:2px 12px 2px 0; text-align:right;"><span data-stat="cov_translator">786</span></td><td style="padding:2px 0; text-align:right;"><span data-stat="covpct_translator">7.1</span>%</td></tr>
-                <tr><td style="padding:2px 12px 2px 0;"><code>second_editor</code></td><td style="padding:2px 12px 2px 0; text-align:right;"><span data-stat="cov_second_editor">533</span></td><td style="padding:2px 0; text-align:right;"><span data-stat="covpct_second_editor">4.8</span>%</td></tr>
-                <tr><td style="padding:2px 12px 2px 0;"><code>secondary_commentator</code></td><td style="padding:2px 12px 2px 0; text-align:right;"><span data-stat="cov_secondary_commentator">434</span></td><td style="padding:2px 0; text-align:right;"><span data-stat="covpct_secondary_commentator">3.9</span>%</td></tr>
+                <tr><td style="padding:2px 12px 2px 0;"><code>title</code></td><td style="padding:2px 12px 2px 0; text-align:right;"><span data-stat="cov_title">11,212</span></td><td style="padding:2px 0; text-align:right;"><span data-stat="covpct_title">100.0</span>%</td></tr>
+                <tr><td style="padding:2px 12px 2px 0;"><code>domain</code></td><td style="padding:2px 12px 2px 0; text-align:right;"><span data-stat="cov_domain">11,212</span></td><td style="padding:2px 0; text-align:right;"><span data-stat="covpct_domain">100.0</span>%</td></tr>
+                <tr><td style="padding:2px 12px 2px 0;"><code>language</code></td><td style="padding:2px 12px 2px 0; text-align:right;"><span data-stat="cov_language">11,210</span></td><td style="padding:2px 0; text-align:right;"><span data-stat="covpct_language">100.0</span>%</td></tr>
+                <tr><td style="padding:2px 12px 2px 0;"><code>sub_domain</code></td><td style="padding:2px 12px 2px 0; text-align:right;"><span data-stat="cov_sub_domain">11,207</span></td><td style="padding:2px 0; text-align:right;"><span data-stat="covpct_sub_domain">100.0</span>%</td></tr>
+                <tr><td style="padding:2px 12px 2px 0;"><code>pages</code></td><td style="padding:2px 12px 2px 0; text-align:right;"><span data-stat="cov_pages">9,547</span></td><td style="padding:2px 0; text-align:right;"><span data-stat="covpct_pages">85.1</span>%</td></tr>
+                <tr><td style="padding:2px 12px 2px 0;"><code>publish_year</code></td><td style="padding:2px 12px 2px 0; text-align:right;"><span data-stat="cov_publish_year">7,866</span></td><td style="padding:2px 0; text-align:right;"><span data-stat="covpct_publish_year">70.2</span>%</td></tr>
+                <tr><td style="padding:2px 12px 2px 0;"><code>author</code></td><td style="padding:2px 12px 2px 0; text-align:right;"><span data-stat="cov_author">7,292</span></td><td style="padding:2px 0; text-align:right;"><span data-stat="covpct_author">65.0</span>%</td></tr>
+                <tr><td style="padding:2px 12px 2px 0;"><code>printer</code></td><td style="padding:2px 12px 2px 0; text-align:right;"><span data-stat="cov_printer">7,105</span></td><td style="padding:2px 0; text-align:right;"><span data-stat="covpct_printer">63.4</span>%</td></tr>
+                <tr><td style="padding:2px 12px 2px 0;"><code>publisher</code></td><td style="padding:2px 12px 2px 0; text-align:right;"><span data-stat="cov_publisher">6,362</span></td><td style="padding:2px 0; text-align:right;"><span data-stat="covpct_publisher">56.7</span>%</td></tr>
+                <tr><td style="padding:2px 12px 2px 0;"><code>editor</code></td><td style="padding:2px 12px 2px 0; text-align:right;"><span data-stat="cov_editor">5,232</span></td><td style="padding:2px 0; text-align:right;"><span data-stat="covpct_editor">46.7</span>%</td></tr>
+                <tr><td style="padding:2px 12px 2px 0;"><code>books_contributor</code></td><td style="padding:2px 12px 2px 0; text-align:right;"><span data-stat="cov_books_contributor">3,678</span></td><td style="padding:2px 0; text-align:right;"><span data-stat="covpct_books_contributor">32.8</span>%</td></tr>
+                <tr><td style="padding:2px 12px 2px 0;"><code>primary_commentator</code></td><td style="padding:2px 12px 2px 0; text-align:right;"><span data-stat="cov_primary_commentator">2,425</span></td><td style="padding:2px 0; text-align:right;"><span data-stat="covpct_primary_commentator">21.6</span>%</td></tr>
+                <tr><td style="padding:2px 12px 2px 0;"><code>commentary_name</code></td><td style="padding:2px 12px 2px 0; text-align:right;"><span data-stat="cov_commentary_name">1,708</span></td><td style="padding:2px 0; text-align:right;"><span data-stat="covpct_commentary_name">15.2</span>%</td></tr>
+                <tr><td style="padding:2px 12px 2px 0;"><code>translator</code></td><td style="padding:2px 12px 2px 0; text-align:right;"><span data-stat="cov_translator">803</span></td><td style="padding:2px 0; text-align:right;"><span data-stat="covpct_translator">7.2</span>%</td></tr>
+                <tr><td style="padding:2px 12px 2px 0;"><code>second_editor</code></td><td style="padding:2px 12px 2px 0; text-align:right;"><span data-stat="cov_second_editor">540</span></td><td style="padding:2px 0; text-align:right;"><span data-stat="covpct_second_editor">4.8</span>%</td></tr>
+                <tr><td style="padding:2px 12px 2px 0;"><code>secondary_commentator</code></td><td style="padding:2px 12px 2px 0; text-align:right;"><span data-stat="cov_secondary_commentator">442</span></td><td style="padding:2px 0; text-align:right;"><span data-stat="covpct_secondary_commentator">3.9</span>%</td></tr>
                 <tr><td style="padding:2px 12px 2px 0;"><code>tertiary_commentator</code></td><td style="padding:2px 12px 2px 0; text-align:right;"><span data-stat="cov_tertiary_commentator">110</span></td><td style="padding:2px 0; text-align:right;"><span data-stat="covpct_tertiary_commentator">1.0</span>%</td></tr>
                 </tbody>
             </table>
@@ -182,7 +184,7 @@
           whose special interface (URL <code>read_chapter.php</code>) presents text with a clickable table of contents and unpaginated text (i.e., there's no "load more" behavior).
         </p>
         <p>
-          By contrast, the vast majority of searchable e-texts (<span data-stat="readbook3">4,891</span>) are accessed via "Read Unicode" links,
+          By contrast, the vast majority of searchable e-texts (<span data-stat="readbook3">4,940</span>) are accessed via "Read Unicode" links,
           whose interface (URL <code>readbook3.php</code>) presents text that is the opposite: unstructured but paginated (sometimes requiring hundreds or thousands of additional loads to reach the end).
         </p>
         <p>
@@ -211,7 +213,7 @@
         <p>
           Approximately <span data-stat="author_pct">65</span>% of items have a non-empty author.
           This naturally divides by genre:
-          Only <span data-stat="author_pct_upanisads">14</span>% of items in <span class="sa-cap">उपनिषदः</span> have an author.
+          Only <span data-stat="author_pct_upanisads">15</span>% of items in <span class="sa-cap">उपनिषदः</span> have an author.
           By contrast, <span data-stat="author_pct_sahitya">82</span>% of <span class="sa-cap">साहित्यम्</span> has author info.
         </p>
         <p>
@@ -266,16 +268,16 @@
         <h3 id="hidden-texts">Hidden Searchable Texts</h3>
         <p>
           One would expect that both "E-Books" and "Unicode Books"
-          would display all items which contain both data types (<span data-stat="both">3,912</span> in number),
+          would display all items which contain both data types (<span data-stat="both">3,961</span> in number),
           but this is not the case. As it happens,
           about a third of the items containing both searchable text and a PDF
-          (<span data-stat="both_hidden">1,365</span>)
+          (<span data-stat="both_hidden">1,364</span>)
           are displayed <strong>only</strong> when browsing "E-Books" (PDF).
           In that sense, users browsing "Unicode Books" are getting an <strong>undercount</strong>
           of the true amount of searchable text on the site.
         </p>
         <p>
-          In order to find these <span data-stat="both_hidden">1,365</span> searchable texts on the site,
+          In order to find these <span data-stat="both_hidden">1,364</span> searchable texts on the site,
           one must get lucky while clicking through search results or "E-Books" (PDF) browse results.
         </p>
         <p>
@@ -355,7 +357,7 @@
           However, there are two <strong>implicit time signals</strong>:
           1) serial numbers, and 2) a hidden timestamp in the filename of thumbnail images.
           On their own, neither of these could be conclusive.
-          However, the fact that they strongly correlate with each other (Spearman &rho;&nbsp;=&nbsp;<span data-stat="serial_upload_rho">0.972</span>) corroborates the value of both.
+          However, the fact that they strongly correlate with each other (Spearman &rho;&nbsp;=&nbsp;<span data-stat="serial_upload_rho">0.973</span>) corroborates the value of both.
         </p>
         <p>
           These correlated implicit signals allow us to do the following:
@@ -376,7 +378,7 @@
           There is exactly one way to test it from outside: a partial fulltext dump by Vishvas Vasuki, posted at
           <a href="https://github.com/sanskrit/raw_etexts/tree/master/mixed/ebhAratI-sampat" target="_blank">sanskrit/raw_etexts</a>
           and frozen at <strong>February 2025</strong> (later commits are not consequential), holding <span data-stat="dump_files">2,737</span> texts
-          (<span data-stat="dump_coverage_pct">24.7</span>% of the catalogue). It lets the same books be read
+          (<span data-stat="dump_coverage_pct">24.4</span>% of the catalogue). It lets the same books be read
           years apart.
         </p>
         <p>

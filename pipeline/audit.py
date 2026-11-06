@@ -183,6 +183,8 @@ NETWORK_STATS = frozenset({
     # From `make dump-analysis`; absent unless that cache has been built.
     "dump_files", "dump_compared", "dump_coverage_pct", "post_dump_stamped", "post_dump_new",
     "post_dump_new_pct", "post_dump_reuploads", "reup_within2", "unch_within2",
+    # From `catalogue.jsonl`; absent on a checkout that never walked the shelves.
+    "unicode_shelf", "unicode_shelf_pdf", "ai_shelf",
 })
 
 # Cached output of pipeline/dump_analysis.py -- minutes of git archaeology over
@@ -727,7 +729,32 @@ def intro_stats(works, hidden=None):
     stats.update(_dump_stats(works))
     stats.update(field_coverage(works))
     stats.update(subcategory_stats())
+    stats.update(shelf_stats(works))
     return stats
+
+
+def shelf_stats(works, path=CATALOGUE_PATH):
+    """Shelf sizes for the intro, from the latest shelf walk.
+
+    "With a PDF" means on the E-Books shelf AND a PDF on the work's own page,
+    the same `pdf` flag the Venn counts, so the two figures sum to its "both".
+    Shelf membership alone overcounts: a few works are shelved as E-Books with
+    no PDF on their page. Missing catalogue means the tags keep their
+    published values (see NETWORK_STATS).
+    """
+    if not path.exists():
+        return {}
+    has_pdf = {w["serial"] for w in works if w.get("pdf")}
+    shelves = collections.defaultdict(set)
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            row = json.loads(line)
+            shelves[row["collection"]].add(row["serial"])
+    return {
+        "unicode_shelf": len(shelves["unicode"]),
+        "unicode_shelf_pdf": len(shelves["unicode"] & shelves["pdf"] & has_pdf),
+        "ai_shelf": len(shelves["ai"]),
+    }
 
 
 # Serial bands for the "Understanding Serials" table. Fixed 500-wide rows on
