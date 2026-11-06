@@ -37,7 +37,7 @@ import re
 import sys
 from pathlib import Path
 
-from pipeline.config import METADATA_CACHE_DIR, METADATA_PATH
+from pipeline.config import CATALOGUE_PATH, METADATA_CACHE_DIR, METADATA_PATH
 from pipeline.upload_dates import decode as decode_upload
 from pipeline.upload_dates import interpolate_additions
 
@@ -215,6 +215,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--cache", type=Path, default=METADATA_CACHE_DIR)
     parser.add_argument("--out", type=Path, default=METADATA_PATH)
+    parser.add_argument("--catalogue", type=Path, default=CATALOGUE_PATH,
+                        help="drop cached works no longer listed (skipped if absent)")
     args = parser.parse_args()
 
     if not args.cache.is_dir():
@@ -239,11 +241,24 @@ def main() -> int:
     field_counts: dict[str, int] = {}
     unknown_labels: dict[str, int] = {}
 
+    # The cache only grows, so a work the site has since removed would stay
+    # here forever. The latest shelf walk says what is still listed; without a
+    # catalogue on disk, keep everything rather than guess.
+    listed = None
+    if args.catalogue.exists():
+        listed = {json.loads(line)["id"]
+                  for line in args.catalogue.read_text(encoding="utf-8").splitlines()
+                  if line.strip()}
+    delisted = []
+
     records = []
     for path in paths:
         record = key_order(parse_file(path))
 
         book_id = record.get("id")
+        if listed is not None and book_id and book_id not in listed:
+            delisted.append(record.get("serial"))
+            continue
         if not book_id:
             no_id += 1
         elif book_id in seen_ids:
@@ -273,7 +288,12 @@ def main() -> int:
 
     print(f"cache:   {args.cache}")
     print(f"out:     {args.out}")
-    print(f"records: {len(paths)}  ({len(seen_ids)} distinct ids)")
+    print(f"records: {len(records)}  ({len(seen_ids)} distinct ids)")
+    if delisted:
+        print(f"dropped: {len(delisted)} cached but no longer on any shelf "
+              f"(serials {sorted(delisted)})")
+    elif listed is None:
+        print(f"note:    no {args.catalogue.name}, so delisted works are kept")
     print(f"added:   {synthetic} synthetic (stamp >1y past its serial neighborhood; "
           f"{early} the same distance behind)")
     if no_id:
