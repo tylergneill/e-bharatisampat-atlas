@@ -7,6 +7,12 @@ Check items off as they're done, and delete a finished item rather than keeping
 it checked — if it left an insight worth having, promote that to a top-level
 note or a code comment first. See `../CLAUDE.md`.
 
+## BLOCKING: the site was rebuilt (seen 2026-11-06)
+
+- [ ] **Work through `site-v4-migration.md`.** Every text and PDF link the
+  Atlas and Sāgarasaṅgama ship is dead, and the category browse link shows the
+  inverse of its category.
+
 ## Growth axis (axis 2) — not built
 
 EBS is the only Atlas with two independent time signals: serial number gives

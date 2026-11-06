@@ -110,6 +110,8 @@ own, so the whole snapshot track can be deleted rather than reconfigured.
 |---|---|
 | `make parse-metadata` | tier-2 cache → `docs/data/metadata.json` (11066 works, no network) |
 | `make clearance` | **NETWORKED. NEEDS `rivulet`** (exits 2 without it). Establishes session clearance → `data/clearance.json`. Run first; the other three need it |
+| `make walk-shelves` | **NETWORKED. NEEDS `rivulet`** (exits 2 without it). The three shelves as raw JSON → `data/shelves_cache/<date>/`, ~150 requests |
+| `make catalogue` | latest shelf walk → `data/catalogue.jsonl`, one row per item per shelf (no network) |
 | `make fetch-metadata` | **NETWORKED. NEEDS `rivulet`** (exits 2 without it). One `readSearch.php` per distinct work → `data/metadata_cache/` |
 | `make fetch-text` | **NETWORKED. NEEDS `rivulet`** (exits 2 without it). readers → `data/fulltext_cache/` + sizes. Pass `MAX_REQUESTS=`; `MAX_CHUNKS=` is a resumable checkpoint |
 | `make check-source-links` | **NETWORKED. NEEDS `rivulet`** (exits 2 without it, which is *inconclusive*, not failure). Have the shipped source links drifted? |
@@ -156,7 +158,7 @@ chunk 0 onto a file that already has 20. Copy them with the caches they describe
 
 **Leave these** — they are pure functions of the above plus the snapshot:
 
-    data/catalogue.jsonl            make catalogue LISTINGS=...
+    data/catalogue.jsonl            make catalogue  (from data/shelves_cache/)
     data/snapshot_inventory.jsonl   make parse
     data/snapshot_text_sizes.jsonl  make count-snapshot-sizes  (~1.5 min)
     data/text_sizes.jsonl           make count-sizes           (no network)

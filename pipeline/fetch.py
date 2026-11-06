@@ -72,6 +72,10 @@ def clearance_main():
     return _load("rivulet.extract.ebharatisampat.clearance_cli", "main")
 
 
+def walk_shelves_main():
+    return _load("rivulet.extract.ebharatisampat.walk_shelves", "main")
+
+
 def fetch_metadata_main():
     return _load("rivulet.extract.ebharatisampat.fetch_metadata", "main")
 

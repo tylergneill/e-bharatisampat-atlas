@@ -35,6 +35,10 @@ SNAPSHOT_SIZES_PATH = DATA_DIR / "snapshot_text_sizes.jsonl"
 # Site-derived: the site's own catalogue, against the snapshot's partial copy.
 CATALOGUE_PATH = DATA_DIR / "catalogue.jsonl"
 
+# Tier 1: the three shelves' raw JSON pages, one dated directory per walk.
+# Kept as served, so a field we didn't think to parse never costs a re-walk.
+SHELVES_CACHE_DIR = DATA_DIR / "shelves_cache"
+
 # The tier-2 metadata cache, keyed on the catalogue's base64 id. Holds raw HTML
 # rather than parsed fields, so a number we didn't think to extract never costs
 # a second scrape. The log beside it is the fetch journal, not the metadata.

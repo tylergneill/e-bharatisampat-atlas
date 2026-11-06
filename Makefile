@@ -1,5 +1,5 @@
 .PHONY: serve-fulltext parse count-snapshot-sizes \
-        clearance catalogue fetch-metadata parse-metadata fetch-text count-sizes \
+        clearance walk-shelves catalogue fetch-metadata parse-metadata fetch-text count-sizes \
         check-source-links audit audit-update-about dump-analysis \
         build snapshot-tree changelog serve serve-snapshot \
         free-server-port get-server-ip-address
@@ -31,19 +31,28 @@ count-snapshot-sizes:
 # distinct work. Fetched bytes land in a gitignored cache holding RAW responses,
 # so re-deriving a field never needs the network twice.
 #
-#   catalogue --------> data/catalogue.jsonl      11066 distinct works
+#   walk-shelves -----> data/shelves_cache/<date>/   raw JSON, three shelves
+#   catalogue --------> data/catalogue.jsonl      one row per item per shelf
 #   fetch-metadata ---> data/metadata_cache/*.html   raw, one file per work
 #   parse-metadata ---> docs/data/metadata.json   serial, sub-cat, language, ...
 #
 # Fetching here was an explicit decision, not an assumption; keep the rate
 # polite.
 
-# Saved listing HTML -> data/catalogue.jsonl, the site's own catalogue of all
-# 11066 distinct works against the snapshot's 2287. Does NO fetching: point
-# LISTINGS at a directory of pages saved by hand (URLs in the module docstring).
-#   make catalogue LISTINGS=/path/to/saved/html
+# The three shelves (E-Books, Unicode Books, AI-converted books) -> raw JSON
+# pages under data/shelves_cache/<date>/, plus a manifest when complete.
+# *** THIS HITS THE NETWORK. *** ~150 requests, 5–15 min. NEEDS `rivulet`
+# (exits 2 without it). Rerun the same day to resume an interrupted walk.
+#   make walk-shelves
+walk-shelves:
+	python -m pipeline.walk_shelves $(ARGS)
+
+# The latest complete shelf walk -> data/catalogue.jsonl, one row per item per
+# shelf, with serial and base64 id. No network.
+#   make catalogue
+#   make catalogue ARGS="--walk data/shelves_cache/2026-11-06"
 catalogue:
-	python -m pipeline.parse_listings --listings $(LISTINGS)
+	python -m pipeline.parse_listings $(ARGS)
 
 # Establish session credentials for the networked targets -> data/clearance.json.
 #
