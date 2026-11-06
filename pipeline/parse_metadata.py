@@ -284,7 +284,7 @@ def main() -> int:
         print(f"unrecognized labels (kept under `extra`): {unknown_labels}")
 
     size = args.out.stat().st_size
-    print(f"size:    {size / 1048576:.1f}M")
+    print(f"size:    {size / 1e6:.1f}M")
 
     print("\nfield coverage:")
     for key, count in sorted(field_counts.items(), key=lambda kv: -kv[1]):
