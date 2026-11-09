@@ -246,11 +246,11 @@
           1) a search bar, and 2) browsing with filters.
         </p>
         <p>
-          Search accepts one of six metadata fields:
+          Search accepts one of seven metadata fields:
           <code>BookName</code>, <code>BookId</code>, <code>Author</code>,
-          <code>Publisher</code>, <code>Printer</code>, or <code>Contributor</code>.
+          <code>Publisher</code>, <code>Printer</code>, <code>Contributor</code>, or <code>Language</code>.
           Results are displayed as thumbnail images along with a subset of metadata fields:
-          serial number, title, (no author), category, and sub-category.
+          serial number, title, author, category, and sub-category.
           The result list is flat and paginated, with a fixed ten items per page and no way to filter.
           The additional full-text search feature (<code>Textual Search</code>) is not discussed further here.
         </p>
@@ -265,16 +265,16 @@
           Browsing is accessed from the site's "Book Categories" menu, which offers "E-Books" (PDF), "Unicode Books" (proofread text) and "AI-converted books" (unproofread text).
         </p>
         <p>
-          Browsing results display as thumbnail images and titles only,
-          but then users have the options to deselect checkboxes
-          and thereby filter away unwanted values for all relevant metadata fields —
+          Browsing results display as thumbnail images and titles (or as a list).
+          Users can then narrow them by ticking values for any of the relevant metadata fields —
           categories, sub-categories, authors, publishers, contributors, and languages —
-          and to download a metadata spreadsheet for however many results are currently displayed,
-          again with limited fields: serial number, title, author, category, and publisher.
+          and download a metadata spreadsheet for whatever is currently displayed.
         </p>
         <p>
-          Note that "E-Books" and "Unicode Books" are <strong>two distinct browsing modes</strong>,
-          focused on providing their own data type.
+          Note that "E-Books," "Unicode Books," and "AI-converted books" are <strong>three distinct shelves</strong>,
+          each showing one data type.
+          They overlap: an item with both text and a PDF appears on two of them,
+          so their counts add up to more than the number of items.
         </p>
 
         <h3 id="language">Sanskrit vs. Other Languages</h3>
@@ -403,6 +403,7 @@
         </p>
         <p>
           Text items that have chapter-by-chapter structure also bear an inert tag "TOC" for "table of contents."
+          Unproofread texts, which the site shelves as "AI-converted books," bear an inert tag "AI."
         </p>
 
         <h3 id="browsing-categories-and-authors">Browsing by Categories and Authors</h3>
@@ -417,45 +418,21 @@
           are retained here.
         </p>
         <p>
-          Category and author headers, under which individual items are displayed,
-          link to the source site's two navigation methods: search and browse.
-          Search applies to both, but its results do not distinguish items by contained data types (PDF or text),
-          hence the link text "search txt+pdf."
+          Category, sub-category, and author headers link to the source site's two navigation methods.
         </p>
         <p>
-          For its part, browse is too awkward to apply to author
-          because it works by exclusion, not inclusion, and the site cannot handle it.
-          That is to say, browsing a single author requires excluding all other authors.
-          If one tries to construct the necessary URL for such a request,
-          the site errors instead of loading the page.
-          For this reason, only categories get browse links.
-          Specifically, the link goes to the "Unicode Books" browsing interface,
-          hence the link text "browse txt" —
-          but again, this browsing mode has a serious <a href="#ai-converted-books">undercounting problem</a>.
+          Browse links go to the site's shelves, filtered to that one value:
+          "browse txt" for "Unicode Books," "browse AI" for "AI-converted books," and "browse PDF" for "E-Books."
+          A link appears only if that shelf holds any of the header's items.
         </p>
         <p>
-          Sub-categories get no link at all;
-          search cannot filter by sub-category,
-          and browsing has yet another undercounting problem in this respect.
-          For example, attempting to browse the sub-category
-          <a href="https://www.ebharatisampat.in/unicodetype.php?cat=अन्यानि%20शास्त्राणि,आगमः,आधुनिकसाहित्यम्,इतिहासः,इतिहासःसंस्कृतिः%20च,उपनिषदः,कला,काव्यानि,कोषाः,गणितम्,गीताः,ग्रन्थसूच्यः,चरितानि%20-%20Biography,दर्शनानि,धर्मशास्त्रम्,पुराणानि,प्रबन्धाः,प्राकृतभाषाग्रन्थाः,भक्तिसम्प्रदायः,भारतीयविज्ञानम्,भाषाशास्त्रम्,लेखाः,विमर्शः%20-%20Criticism,वेदः,वेदाङ्गानि,शिक्षाशास्त्रम्,संस्कृतभाषाग्रन्थाः,सरलसंस्कृतम्,साहित्यम्,सुभाषितसंग्रहः,सुभाषितानि,स्तोत्रसाहित्यम्&sub_cat=All,गान्धर्ववेदः,धनुर्वेदः,स्थापत्यवेदः&author=null&publisher=null&contributor=null&language=null&sort=ASC" target="_blank">
-            <span class="sa-cap">आयुर्वेदः</span></a>,
-          which the browse interface's own sidebar estimates at <strong>107</strong> items,
-          lands on a page showing just <strong>32</strong> items, with
-          the label still reading 107 beside it.
-          (The Atlas, which also counts the "AI-converted books,"
-          reveals the real count as <strong><span data-stat="subcat_example">187</span></strong>.)
-          Similarly, the <span data-stat="subcat_example_subs">4</span> sub-categories of
-          <span class="sa-cap">उपवेदाः</span>
-          sum to 151 in the browse interface sidebar, while the pages they lead to total 48.
-          (The true count is <strong><span data-stat="subcat_example_domain">236</span></strong>.)
+          Search links ("search txt+pdf") show texts and PDFs together in one flat list.
+          Search can filter by category or author but not by sub-category,
+          so sub-categories get browse links only.
         </p>
         <p>
-          Groupings the Atlas itself introduces ("unknown" author,
-          "uncategorized") also get no link, because browse cannot express them —
-          unknown author for the same author-related reason stated above,
-          and uncategorized items because excluding every known category value returns nothing at all
-          rather than the remainder that carries none of them.
+          Groupings the Atlas itself introduces ("unknown" author, "uncategorized")
+          get no links, because they are not values the site can filter by.
         </p>
 
       </details>
@@ -472,7 +449,7 @@
         <ul style="list-style: none; padding-left: 0;">
           <li class="audit-item"><details>
             <summary class="audit-summary"><span>Text-only items <strong>overcounted</strong> by “E-Books” (PDF) browsing (7 of 9574 listed)</span></summary>
-          <p style="margin-left: 1.6em;">I.e., these should be found <a href="https://www.ebharatisampat.in/pdf.php?cat=All" target="_blank" rel="noopener">here</a> only if they have a PDF, but none of them do.</p>
+          <p style="margin-left: 1.6em;">I.e., these should be found <a href="https://www.ebharatisampat.in/pdf" target="_blank" rel="noopener">here</a> only if they have a PDF, but none of them do.</p>
           <ul style="margin-left: 1.6em;">
             <li>(2715) <a href="https://www.ebharatisampat.in/readSearch.php?id=MDM3NTcxODk3OTI2MDYy" target="_blank" rel="noopener"><span class="sa-cap">दैवज्ञवल्लभा</span></a></li>
             <li>(2972) <a href="https://www.ebharatisampat.in/readSearch.php?id=NDgxODc0MjM4MDAzNTgy" target="_blank" rel="noopener"><span class="sa-cap">विष्णुधर्मसूत्रम्</span></a></li>

@@ -70,8 +70,7 @@ import urllib.parse
 from pathlib import Path
 
 from pipeline.config import (CATALOGUE_PATH, DOCS_DIR,
-                            METADATA_PATH, TEXT_LOG_PATH, TEXT_SIZES_PATH,
-                            TREE_PATH)
+                            METADATA_PATH, TEXT_LOG_PATH, TEXT_SIZES_PATH)
 from pipeline.upload_dates import interpolate_additions
 
 SITE_ROOT = "https://www.ebharatisampat.in"
@@ -132,8 +131,6 @@ ABOUT_HTML_PATH = DOCS_DIR / "about.html"
 # missing, `update_intro_stats` leaves the published number alone rather than
 # blanking what it did not measure.
 OPTIONAL_STATS = frozenset({
-    # From `tree.json`, which a metadata-only checkout may not have built yet.
-    "subcat_example", "subcat_example_domain", "subcat_example_subs",
     # From `make dump-analysis`; absent unless that cache has been built.
     "dump_files", "dump_compared", "dump_coverage_pct", "post_dump_stamped", "post_dump_new",
     "post_dump_new_pct", "post_dump_reuploads", "reup_within2", "unch_within2",
@@ -149,7 +146,7 @@ AUDIT_END_MARKER = "<!-- AUDIT:END -->"
 
 # The listing the overshoot finding is measured against, unfiltered, so a
 # reader can check it by hand in one click.
-PDF_BROWSE_URL = SITE_ROOT + "/pdf.php?cat=All"
+PDF_BROWSE_URL = SITE_ROOT + "/pdf"
 
 
 # --- inputs -----------------------------------------------------------------
@@ -464,42 +461,6 @@ AUTHOR_PCT_DOMAINS = {
     "author_pct_sahitya": "साहित्यम्",
 }
 
-# The sub-category the "Presentation of Categories and Authors" paragraph uses
-# to demonstrate the `sub_cat` deep-link defect, and the domain holding it.
-# Both figures are quoted there against the listing's own, so they move with a
-# rebuild instead of being retyped.
-SUBCAT_EXAMPLE_DOMAIN = "उपवेदाः"
-SUBCAT_EXAMPLE_SUB = "आयुर्वेदः"
-
-
-def subcategory_stats(tree_path=TREE_PATH):
-    """Atlas counts for the sub-category example, read from `tree.json`.
-
-    Deliberately NOT from `metadata.json` like every other intro figure. The
-    sentence these land in says what *the Atlas shows*, and the Atlas shows
-    the tree -- which suppresses the reader of works measured empty
-    (`build_tree.work_from_metadata`). On 2026-08-24 that is the whole gap:
-    metadata counts 187 text-bearing आयुर्वेदः works, the tree publishes 184.
-    Quoting metadata's figure here would print a number the page's own browser
-    contradicts three rows down.
-
-    Missing tree means the tags keep their published values, same convention as
-    OPTIONAL_STATS -- a figure we could not measure is not a figure to blank.
-    """
-    if not tree_path.exists():
-        return {}
-    works = json.loads(tree_path.read_text(encoding="utf-8"))["works"]
-    in_domain = [w for w in works
-                 if w.get("domain") == SUBCAT_EXAMPLE_DOMAIN and w.get("text")]
-    return {
-        "subcat_example": sum(1 for w in in_domain
-                              if w.get("sub_domain") == SUBCAT_EXAMPLE_SUB),
-        "subcat_example_domain": len(in_domain),
-        "subcat_example_subs": len({w.get("sub_domain") for w in in_domain
-                                    if w.get("sub_domain")}),
-    }
-
-
 def field_coverage(works):
     """Per-field counts and percentages for the Metadata Pages table.
 
@@ -581,7 +542,6 @@ def intro_stats(works):
 
     stats.update(_dump_stats(works))
     stats.update(field_coverage(works))
-    stats.update(subcategory_stats())
     stats.update(shelf_stats(works))
     return stats
 

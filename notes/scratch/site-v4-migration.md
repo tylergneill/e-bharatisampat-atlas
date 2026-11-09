@@ -27,15 +27,11 @@ user-visible items below are fixed.
   `ebook_pdf?bookid=` with the encoded serial and no `bookname`.
   `pipeline/parse_metadata.py::reader_url` still builds the old forms; it is
   unused, cited only in comments.
-- [ ] **The category "browse" link is inverted.** `listingComplementUrl` names
-  the other 32 categories; facets are now inclusion lists, so the link shows
-  everything *except* the chosen category. Build
-  `unicodetype?q=<b64 {"cat":[x]}>` instead. **Unicode shelf only**: the AI
-  shelf (`ai_books?q=…`) holds the other ~24% of texts, so either give two links
-  or say so in the tooltip.
-- [ ] **Sub-category and author browse links are now possible.** The long
-  comment block explaining why they are withheld (the sub_cat complement
-  failing, the 451 KB author URL) is obsolete. Rewrite or delete it.
+- [x] **Browse links rebuilt as inclusion filters** (`browseLinks` in
+  `docs/app.js`): categories, sub-categories and authors each get one link per
+  shelf that holds their works ("browse txt" / "browse AI" / "browse PDF"),
+  with `search txt+pdf` last for categories and authors. Checked against the
+  live site 2026-11-09 (āyurveda 107 / 80 / 314, कालिदासः 48 / 6 / 106-107).
 
 ## About page, next in order
 
@@ -43,12 +39,16 @@ user-visible items below are fixed.
   under "Two Overlapping Collections"), and the audit's hidden-books finding
   retired with it. That finding was the audit's only live request, so the
   audit is now entirely offline: no clearance, no `--offline-skip-gap`.
-- [ ] **Other copy relying on the old defects**: the exclusion-list URL near
-  `about.html:448` and the ~24% shortfall. Recheck before rewording; see
-  CLAUDE.md on promoting note prose into UI copy.
-- [ ] **The "overcounted by E-Books" bullet's link**, `pdf.php?cat=All`
-  (`audit.PDF_BROWSE_URL`), may show nothing now that facets are inclusion
-  lists. Its 7 works (2715, 2972, 3170, 3613, 3819, 3856, 4059) are still
+- [x] **About copy for browsing** ("Search vs. Browse", "Emphasis on
+  Searchable Text", "Browsing by Categories and Authors") rewritten for the
+  three shelves and inclusion filters; the āyurveda 107-vs-32 example and its
+  audit stats are gone.
+- [ ] **"Structured vs. Unstructured Texts"** still describes the old readers
+  (`.php` URLs, "load more" pagination; the new `readbook3` serves the whole
+  book), and its button names and download rules need checking. Also consider
+  moving "Multiple Editions of One Work" up, after "AI-converted Books".
+- [x] **The "overcounted by E-Books" bullet's link** (`audit.PDF_BROWSE_URL`)
+  now points at the unfiltered `/pdf` shelf instead of `pdf.php?cat=All`. Its 7 works (2715, 2972, 3170, 3613, 3819, 3856, 4059) are still
   shelved as E-Books with no PDF on their page.
 
 ## Pipeline
@@ -76,5 +76,4 @@ user-visible items below are fixed.
   browsing filter or a total.)
 - [ ] **`title_eg`** (English or romanized title) is a new field. It could
   feed search.
-- [ ] **Sub-category and author links** (above) are the big one: facets as
-  inclusion lists make every axis of the Atlas linkable on the site.
+- [x] **Sub-category and author links**: done with the browse-link rebuild.
