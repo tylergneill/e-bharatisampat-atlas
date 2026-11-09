@@ -4,7 +4,7 @@ What we have learned about **ebharatisampat.in from the site itself** — its
 endpoints, its identifiers, and which of its behaviours will mislead a reader
 of its own pages. Add to it; prune only what is disproven.
 
-**Corpus figures are not here.** `make audit` measures them live and writes
+**Corpus figures are not here.** `make audit` re-derives them and writes
 them into `about.html`. Text-acquisition mechanics are not here either: they
 live with the fetcher, in rivulet's `extract/ebharatisampat/fetch_fulltext.py`.
 
@@ -148,21 +148,25 @@ nothing more.
 
 ## The proofread axis is real but not a census
 
-The site labels its whole Unicode collection "Proofread Books", while a
-substantial minority of complete `readbook3` books carry an **unproofread
-banner in the reader HTML** — invisible to both the listings and the metadata,
-which is where an earlier check looked and found nothing.
+Since the rebuild the site states it outright: unproofread texts are shelved
+as "AI-converted books" (`correct_ocr` 0 in the shelf JSON), proofread ones as
+"Unicode Books" (`correct_ocr` 1). Before that it showed only as a banner in
+the `readbook3` reader HTML ("This text is machine converted"), invisible to
+the listings and the metadata. rivulet's `fetch_fulltext` still probes that
+banner and journals it as `unproofread`; the two agree on 1,314 of 1,316
+books (checked 2026-11-06).
 
-Two cautions:
+Two cautions, unchanged by the rebuild:
 
 - **Do not report the corpus-wide ratio on its own.** It is **batch structure,
   not per-book judgement**: the flag tracks when a book was ingested, not how
   carefully it was read.
-- **`unproofread=False` is not evidence of proofreading.** The site runs a
+- **"Proofread" is not evidence of finished proofreading.** The site runs a
   two-stage *Proofread → Review* workflow tracked to a page offset inside each
-  book, and leaks per-book progress notes into the served text. Every such note
-  found so far sat on a book journalled `False` while stating it was
-  incomplete. `False` means only "the banner sentence did not appear".
+  book, and leaks per-book progress notes into the served text. Every such
+  note found so far sat on a book journalled `unproofread=False` while stating
+  it was incomplete. Neither `False` nor a place on "Unicode Books" means more
+  than "not flagged as machine-converted".
 
 ## Thumbnail filenames are the only "when was this added" signal
 

@@ -68,8 +68,7 @@ atlas builds normally:
 - `make serve` — serve `docs/` on :8002 (`serve-fulltext` adds the local text
   at `/text/<serial>`, localhost only)
 - `make audit` / `make audit-update-about` — re-derives the figures published on
-  the about page and rewrites only its own marked region. Part of it walks the
-  live site; pass `ARGS=--offline-skip-gap` for our side only.
+  the about page and rewrites only its own marked region. No network.
 
 Figures are measured from the current build and move when the catalogue does;
 re-derive them rather than quoting them.

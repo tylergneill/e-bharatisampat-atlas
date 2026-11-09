@@ -41,28 +41,17 @@ user-visible items below are fixed.
 
 ## About page, next in order
 
-- [ ] **"Hidden Searchable Texts" → about "AI-converted books".** The 1,364
-  works the old Unicode listing omitted are now their own shelf. Rewrite the
-  section, and with it `audit.py`'s `find_hidden_books` /
-  `load_listing_capture`, which still count only `collection == "unicode"` as
-  the text listing and so report every AI-converted book as missing.
+- [x] **"Hidden Searchable Texts" replaced by "AI-converted Books"** (moved up
+  under "Two Overlapping Collections"), and the audit's hidden-books finding
+  retired with it. That finding was the audit's only live request, so the
+  audit is now entirely offline: no clearance, no `--offline-skip-gap`.
 - [ ] **Other copy relying on the old defects**: the exclusion-list URL near
   `about.html:448` and the ~24% shortfall. Recheck before rewording; see
   CLAUDE.md on promoting note prose into UI copy.
-
-## Before the next full (online) audit run
-
-`make audit-update-about` without `--offline-skip-gap` rewrites the
-"Opportunities for Correction" region. Do not run it until these are fixed:
-
-- [ ] The hidden-books fix above, or it republishes 1,364 works as omitted.
-- [ ] **The online walk itself** (~33 requests) reads totals from the old
-  `.php` listing pages. They still answer, but check them against the rebuilt
-  site.
-- [ ] **The "overcounted by E-Books" bullet**: its "of 9428 listed" is the
-  August total (now 9,574), and its link `pdf.php?cat=All` may show nothing now
-  that facets are inclusion lists. The 7 works it names (2715, 2972, 3170, 3613,
-  3819, 3856, 4059) are still shelved as E-Books with no PDF on their page.
+- [ ] **The "overcounted by E-Books" bullet's link**, `pdf.php?cat=All`
+  (`audit.PDF_BROWSE_URL`), may show nothing now that facets are inclusion
+  lists. Its 7 works (2715, 2972, 3170, 3613, 3819, 3856, 4059) are still
+  shelved as E-Books with no PDF on their page.
 
 ## Pipeline
 

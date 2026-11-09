@@ -146,24 +146,11 @@ check-source-links:
 # docs/about.html between the AUDIT markers. A finding is for a human to look
 # at, never an auto-correction.
 #
-# Offline checks read docs/data/metadata.json and always run. The live walk runs
-# too, BY DEFAULT: it needs `make clearance` first and costs ~33 requests at one
-# per 2s (~2 min). Without clearance it exits 2 = INCONCLUSIVE, not 1 -- being
-# unable to ask the site says nothing about the collection, same convention as
-# check-source-links.
-#
-# Every number is re-derived by the run that publishes it, so a run without the
-# walk reports NO gap: the listing's half of the subtraction lives on the site,
-# and quoting a remembered figure is the exact failure this guards against.
-#
-# Hence one mode selector rather than two knobs. --offline-skip-gap skips the
-# walk AND the gap: with --update-about it leaves the published audit region
-# untouched, since rewriting it gap-less would delete the per-category listing
-# figures nothing offline can reproduce. The intro's data-stat figures still
-# refresh either way -- those are measured from files on disk.
-#   make audit                                    # report, incl. the live walk
-#   make audit ARGS=--offline-skip-gap            # our side only, gap left alone
-#   make audit-update-about                       # ...and publish it
+# No network: reads metadata.json, catalogue.jsonl and the size files, and
+# re-derives every number it publishes. A figure whose input file is missing on
+# this checkout keeps its published value rather than being blanked.
+#   make audit                # report only
+#   make audit-update-about   # ...and publish it
 audit:
 	python -m pipeline.audit $(ARGS)
 

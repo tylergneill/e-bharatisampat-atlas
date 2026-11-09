@@ -160,50 +160,6 @@ already covers the first two items below.
       switch, group pill, badges and work lists without pruning the wikisource
       rules underneath. Folds into the de-wikisource item above.
 
-## The catalogue has drifted since the 2026-08-14 capture (found 2026-08-22)
-
-The listing membership snapshots under `data/listing_membership/` disagree with
-`data/catalogue.jsonl`, and the gap is real movement upstream, not noise:
-**4192 Unicode ids captured 08-14, 4214 on 08-21** — 24 added, 2 dropped, net
-+22. The two dropped are serials 981 (`केशवीशिक्षा`) and 1502
-(`अध्यात्मतरङ्गिणी`); the additions cluster at high serials (9000–10557), which
-reads like recent uploads landing in bulk.
-
-- [ ] **Rerun the metadata fetch, then reparse.** The 24 new ids are not in
-      `docs/data/metadata.json` at all for the fields that matter — 20 of them
-      come back `text=None`, which is our *absence of a record*, not a measured
-      "this work has no text". Until they are fetched we cannot say which of
-      them are text-bearing, and every total derived from the catalogue is
-      quietly stale.
-      `make fetch-metadata` then `make parse-metadata`.
-      *Hits the network; needs `make clearance` first, one request per 2s.*
-
-- [ ] **Supplement the full-text fetch with the new Unicode-text items.**
-      Once the metadata is refreshed, any of the 24 that turn out to carry a
-      reader needs its text fetched so `text_sizes.jsonl` covers it — otherwise
-      the size axis under-reports the works added since 08-14. Of the 4 that
-      already show a reader in current metadata (serials 4633, 8801, 10303,
-      10557, all `readbook3`), only 4633 has been fetched — **8801, 10303 and
-      10557 are missing from `text_sizes.jsonl`**.
-      `make fetch-text` resumes and never refetches, so this is additive:
-      a bounded run (`MAX_REQUESTS=…`) is enough to pick up the tail.
-
-- [ ] **Recheck the "error runs one way only" claim** published in the Data
-      Quality audit. It says *"every item it does show does have text. Nothing
-      is listed that should not be"*, which was true of the 08-14 capture
-      (`contradictions == 0`). On the 08-21 membership it is **not** obviously
-      true: 20 of the 24 additions have no text record. If the refetch confirms
-      they genuinely lack a Unicode reader, the Unicode listing has the same
-      over-inclusion defect the E-Books finding reports, and that sentence in
-      `render_hidden_books` has to go or be qualified.
-
-**Why this was not visible before:** the audit's gap figure comes from the live
-listing total, but the *names* come from `catalogue.jsonl`, which is a
-capture with a date on it. The two were never compared against the membership
-snapshots, so an 8-day drift sat between them unnoticed. Worth deciding whether
-`catalogue.jsonl` should simply be regenerated whenever a membership snapshot
-disagrees with it.
-
 ## Books stopped shallow by `dead-run`
 
 - [ ] **~20 books are still stopped shallow, and are the same shape as the

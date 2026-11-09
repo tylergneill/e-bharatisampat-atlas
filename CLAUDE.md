@@ -172,7 +172,7 @@ part: the site is access-controlled, and **the atlas does not need the text** �
 function of whatever cache is already on disk.
 
 What stayed public: `parse_metadata`, `count_sizes`, `build_tree`, `shape`,
-`text_measure`, and the audit — every check in it but the one networked prober.
+`text_measure`, and the audit, which has been entirely offline since 2026-11-09.
 
 **This widened from an earlier, narrower split.** Until 2026-09-03 only the
 fulltext walk was private, and clearance was **duplicated** — a copy in rivulet
@@ -217,8 +217,7 @@ way to obtain a gated corpus without the acquisition code.
    `fetch-metadata`, `fetch-text`, `check-source-links` — **exits 2**
    ("machinery not installed"), distinct from 1 = failure, and
    `run_ladder.sh` propagates that so `|| break` still works. `make audit`
-   still runs every offline check; its one networked probe reports
-   *inconclusive*, which is what it already did for lapsed clearance.
+   is entirely offline (since 2026-11-09) and runs in full.
 2. **With rivulet** (`pip install -e ../../rivulet`) — cache refreshed, sizes
    full and current.
 3. **`--fulltext` serve mode** (`make serve-fulltext`) — does *not* require
