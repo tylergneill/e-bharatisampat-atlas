@@ -33,7 +33,9 @@ the listing; `ebook/index.php?bookid=<id>` is a 404.
 **The new reader `bookid` encodes the SERIAL, not the base64 id**, and
 `bookname` the Devanagari title. Each is wrapped five times: decode base64,
 then four rounds of reverse-the-string-and-decode-base64. So links are
-buildable from data we already hold. Whether `bookname` is required is untested.
+buildable from data we already hold. **`bookname` is optional**: without it
+both readers serve the whole book (2503: 415,733 B against 415,753 with it,
+checked 2026-11-09) and only the browser-tab title goes blank.
 
 **`readunicode.php`, `readpdf.php` and `readSearch.php` are one endpoint.**
 The first two are redundant aliases; all three return the same metadata page.

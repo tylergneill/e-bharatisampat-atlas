@@ -21,14 +21,12 @@ user-visible items below are fixed.
 
 ## Broken now (user-visible)
 
-- [ ] **Text and PDF links in `docs/app.js` are dead.** `textUrl` and `pdfUrl`
-  build `readbook3.php?bookid=<id>&pageno=…`, `read_chapter.php?bookid=<id>` and
-  `ebook/index.php?bookid=<id>`. The new forms take the *encoded serial* (and
-  `bookname` = encoded title for readbook3); the encoding is in
-  site-structure.md. Test whether `bookname` can be omitted before shipping it.
-  `metadataUrl` (`readSearch.php?id=`) still works. The same goes for
-  `pipeline/parse_metadata.py::reader_url`.
-- [ ] **The same dead links are in Sāgarasaṅgama** — `sagara-sangama/docs/search.js:204-215`.
+- [x] **Text and PDF links rebuilt** in `docs/app.js` (`readerId`) and
+  Sāgarasaṅgama's `docs/search.js` (`ebReaderId`, from a new `s` serial field
+  in its index), as `readbook3?bookid=`, `read_chapter?bookid=` and
+  `ebook_pdf?bookid=` with the encoded serial and no `bookname`.
+  `pipeline/parse_metadata.py::reader_url` still builds the old forms; it is
+  unused, cited only in comments.
 - [ ] **The category "browse" link is inverted.** `listingComplementUrl` names
   the other 32 categories; facets are now inclusion lists, so the link shows
   everything *except* the chosen category. Build
@@ -70,9 +68,12 @@ user-visible items below are fixed.
 
 ## New opportunities
 
-- [ ] **Publish the proofread axis from `correct_ocr`** rather than the banner
-  heuristic. It is per-shelf and site-sourced; the site-structure.md caution
-  that the flag is batch structure, not a per-book judgement, still applies.
+- [x] **Publish the proofread axis from the shelves** rather than the banner
+  heuristic: `parse_metadata` joins `ai_converted` from the "AI-converted
+  books" shelf, shown as an "AI" badge in the Atlas and "AI-converted" in
+  Sāgarasaṅgama's search. The site-structure.md caution that the flag is
+  batch structure, not a per-book judgement, still applies. (Not yet a
+  browsing filter or a total.)
 - [ ] **`title_eg`** (English or romanized title) is a new field. It could
   feed search.
 - [ ] **Sub-category and author links** (above) are the big one: facets as

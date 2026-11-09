@@ -521,6 +521,11 @@ function renderWorkLi(work) {
   // TOC is a property of the text, not a format of its own -- there is nothing
   // separate to open -- so it stays an unlinked marker.
   if (hasToc) badges.appendChild(el("span", { class: "badge", title: "Has a chapter-by-chapter table of contents on the site" }, "TOC"));
+  // Likewise a property of the text: the site shelves it as "AI-converted
+  // books", i.e. not proofread.
+  if (work.text && work.ai_converted) {
+    badges.appendChild(el("span", { class: "badge", title: "AI-converted text (not proofread)" }, "AI"));
+  }
 
   const pdfHref = pdfUrl(work);
   if (pdfHref) {
@@ -582,23 +587,33 @@ function encodedId(work) {
 
 const SITE_ROOT = "https://www.ebharatisampat.in";
 
-// Text and PDF are two distinct documents, not two renderings of one, and 3912
-// works have both. So each gets its own link off the badge; the title goes to
-// the metadata page, which is the one page that describes the work itself
-// rather than a single format of it.
+// The readers' `bookid` since the site's November 2026 rebuild: the SERIAL,
+// base64-encoded five times with the string reversed between rounds. (Not the
+// metadata page's id; see notes/site-structure.md.) The site's own links also
+// pass `bookname`, the title encoded the same way, but it only sets the tab
+// title -- the book is served in full without it.
+function readerId(work) {
+  if (work.serial == null) return null;
+  let e = String(work.serial);
+  for (let i = 0; i < 4; i++) e = btoa(e).split("").reverse().join("");
+  return btoa(e);
+}
+
+// Text and PDF are two distinct documents, not two renderings of one, and
+// thousands of works have both. So each gets its own link off the badge; the
+// title goes to the metadata page, which is the one page that describes the
+// work itself rather than a single format of it.
 function textUrl(work) {
-  const id = encodedId(work);
-  if (work.text === "readbook3") {
-    // One constant pageno across every readbook3 link in the corpus -- a
-    // session/view token, not a page number.
-    return `${SITE_ROOT}/readbook3.php?bookid=${id}&pageno=MjI0MjQyNjk5NTk=`;
-  }
-  if (work.text === "read_chapter") return `${SITE_ROOT}/read_chapter.php?bookid=${id}`;
+  const id = readerId(work);
+  if (!id) return null;
+  if (work.text === "readbook3") return `${SITE_ROOT}/readbook3?bookid=${id}`;
+  if (work.text === "read_chapter") return `${SITE_ROOT}/read_chapter?bookid=${id}`;
   return null;
 }
 
 function pdfUrl(work) {
-  return work.pdf ? `${SITE_ROOT}/ebook/index.php?bookid=${encodedId(work)}` : null;
+  const id = readerId(work);
+  return work.pdf && id ? `${SITE_ROOT}/ebook_pdf?bookid=${id}` : null;
 }
 
 function metadataUrl(work) {

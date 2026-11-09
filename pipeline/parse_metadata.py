@@ -244,18 +244,27 @@ def main() -> int:
     # The cache only grows, so a work the site has since removed would stay
     # here forever. The latest shelf walk says what is still listed; without a
     # catalogue on disk, keep everything rather than guess.
-    listed = None
+    #
+    # The same walk says which texts are unproofread: the site shelves them as
+    # "AI-converted books". That is a shelf fact, not on the metadata page, so
+    # it is joined in here as `ai_converted`.
+    listed, ai_shelf = None, set()
     if args.catalogue.exists():
-        listed = {json.loads(line)["id"]
-                  for line in args.catalogue.read_text(encoding="utf-8").splitlines()
-                  if line.strip()}
+        rows = [json.loads(line)
+                for line in args.catalogue.read_text(encoding="utf-8").splitlines()
+                if line.strip()]
+        listed = {row["id"] for row in rows}
+        ai_shelf = {row["id"] for row in rows if row.get("collection") == "ai"}
     delisted = []
 
     records = []
     for path in paths:
-        record = key_order(parse_file(path))
-
+        record = parse_file(path)
         book_id = record.get("id")
+        if book_id in ai_shelf:
+            record["ai_converted"] = True
+        record = key_order(record)
+
         if listed is not None and book_id and book_id not in listed:
             delisted.append(record.get("serial"))
             continue
