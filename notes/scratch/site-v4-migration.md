@@ -43,10 +43,12 @@ user-visible items below are fixed.
   Searchable Text", "Browsing by Categories and Authors") rewritten for the
   three shelves and inclusion filters; the āyurveda 107-vs-32 example and its
   audit stats are gone.
-- [ ] **"Structured vs. Unstructured Texts"** still describes the old readers
-  (`.php` URLs, "load more" pagination; the new `readbook3` serves the whole
-  book), and its button names and download rules need checking. Also consider
-  moving "Multiple Editions of One Work" up, after "AI-converted Books".
+- [x] **"Structured vs. Unstructured Texts"** rewritten for the new readers
+  (whole text on one page, both downloads login-gated, "Read Chapter"), and
+  "Multiple Editions of One Work" moved up after "AI-converted Books", its
+  counts refreshed (32 / 28). "Calculating Size Information" still cites deep
+  pagination as why the scrape took weeks: true of the walk we ran, but not of
+  a refetch now.
 - [x] **The "overcounted by E-Books" bullet's link** (`audit.PDF_BROWSE_URL`)
   now points at the unfiltered `/pdf` shelf instead of `pdf.php?cat=All`. Its 7 works (2715, 2972, 3170, 3613, 3819, 3856, 4059) are still
   shelved as E-Books with no PDF on their page.
@@ -60,7 +62,10 @@ user-visible items below are fixed.
 - [ ] **rivulet `check_source_links`**: it asserts on `<select name="type">`
   (gone; it is a hidden input now), and `check_browse_not_inverted` tests the
   old complement logic. Both need rewriting.
-- [ ] **rivulet `fetch_fulltext`**: `READER_URL` (the unproofread-banner probe)
+- [ ] **rivulet `fetch_fulltext`**: **the route itself can change.** One
+  `readbook3` GET holds the whole book (site-structure.md), so a full refetch
+  would be ~5,600 requests (~3h at 2s) instead of the 412,045 the chunk walk
+  cost, with no dead-run termination heuristics and no repeated chunks. Also: `READER_URL` (the unproofread-banner probe)
   is the dead `readbook3.php` form. `correct_ocr`, or which shelf a work is on,
   replaces the banner probe outright. `get_unicode.php` itself still works,
   byte-identical. The 49 works that gained text, plus the 147 new ones, have

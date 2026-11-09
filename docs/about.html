@@ -138,13 +138,22 @@
           They appeared only under "E-Books," so finding them as texts took luck.
         </p>
 
+        <h3 id="multiple-editions">Multiple Editions of One Work</h3>
+        <p>
+          The collection is a library of <em>printed editions</em>, not a canon of
+          works, so repeated titles are expected rather than duplicates to be merged.
+          There are over <a href="https://www.ebharatisampat.in/search.php?ebs=काव्यप्रकाश&type=book" target="_blank">thirty</a>
+          <span class="sa-cap">काव्यप्रकाशः</span> items here,
+          <a href="https://www.ebharatisampat.in/search.php?ebs=हितोपदेश&type=book" target="_blank">nearly thirty</a> of <span class="sa-cap">हितोपदेशः</span>, and so on.
+        </p>
+
         <h3 id="metadata">Metadata</h3>
         <p>
           Each item has a metadata page (URL <code>readSearch.php</code>), e.g.,
           this <a href="https://www.ebharatisampat.in/readSearch.php?id=MDc1ODE2MzgxMDM3MTY3" target="_blank"><span class="sa-cap">कादम्बरी</span></a>.
           These pages are the most basic representation of an item, containing all available metadata,
           plus some number of content links depending on available data type:
-          "Read Unicode" or "Read Chapters" if it has searchable text (see <a href="#structured-text">Structured vs. Unstructured Texts</a> below for the distinction),
+          "Read Unicode" or "Read Chapter" if it has searchable text (see <a href="#structured-text">Structured vs. Unstructured Texts</a> below for the distinction),
           and/or "Read E-Book" if it has a PDF.
         </p>
         <p>
@@ -193,27 +202,16 @@
         <h3 id="structured-text">Structured vs. Unstructured Texts</h3>
         <p>
           Of the searchable e-texts, some (<span data-stat="read_chapter">666</span>) are furnished with chapter-by-chapter structure.
-          On the source website, these are accessed via "Read Chapters" links,
-          whose special interface (URL <code>read_chapter.php</code>) presents text with a clickable table of contents and unpaginated text (i.e., there's no "load more" behavior).
+          On the source website, these are accessed via "Read Chapter" links,
+          where the interface (URL <code>read_chapter</code>) presents text with a clickable table of contents
+          (under "Title" in the "Note Book" sidebar, which is hidden by default).
         </p>
         <p>
           By contrast, the vast majority of searchable e-texts (<span data-stat="readbook3">4,940</span>) are accessed via "Read Unicode" links,
-          whose interface (URL <code>readbook3.php</code>) presents text that is the opposite: unstructured but paginated (sometimes requiring hundreds or thousands of additional loads to reach the end).
+          whose interface (URL <code>readbook3</code>) presents text that is unstructured, with no table of contents.
         </p>
         <p>
-          "Read Unicode"-type texts can be downloaded in full,
-          as either plain text or a Word doc,
-          if logged in as a registered user.
-          "Read Chapters"-type texts can be downloaded in full even if not logged in.
-        </p>
-
-        <h3 id="multiple-editions">Multiple Editions of One Work</h3>
-        <p>
-          The collection is a library of <em>printed editions</em>, not a canon of
-          works, so repeated titles are expected rather than duplicates to be merged.
-          There are some <a href="https://www.ebharatisampat.in/search.php?ebs=काव्यप्रकाश&type=book" target="_blank">thirty</a>
-          <span class="sa-cap">काव्यप्रकाशः</span> items here,
-          <a href="https://www.ebharatisampat.in/search.php?ebs=हितोपदेश&type=book" target="_blank">twenty-five</a> of <span class="sa-cap">हितोपदेशः</span>, and so on.
+          Either type can be downloaded in full only if logged in as a registered user.
         </p>
 
         <h3 id="categories-and-authors">Categories and Authors</h3>

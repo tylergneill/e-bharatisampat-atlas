@@ -44,7 +44,25 @@ The page's `<h5>LABEL: value</h5>` rows became
 the title moved to `<h1 class="book-title">`, and TEXT/PDF are now the
 `book-actions` buttons. The field set is unchanged.
 
-The reader's Text / Word / PDF export buttons are **login-gated** (`login.php`).
+The download buttons are **login-gated** (`login.php`) on both readers:
+`readbook3` offers PDF / Word / Text, `read_chapter` Text only (its PDF and
+Word links are commented out). Metadata-page buttons read "Read Unicode",
+"Read Chapter" (singular now) and "Read E-Book". Checked 2026-11-09.
+
+**One `readbook3` GET now holds the whole book**, where `get_unicode.php`
+needs one request per chunk. Checked 2026-11-09 against the cache by
+Devanagari word multiset, after rivulet's `strip_markup` (which lifts the
+`title=` glosses -- skip that and a sacūrṇika book looks ~1% short): 1618
+(1 chunk), 2503 (1) and 640 (318) are **identical**; 6779 (1864 chunks, the
+deepest; 9.3 MB, 3.1 s) has 651 words more than the cache and 1 fewer; 304
+(51) has ~900 fewer, nearly all repeats the chunk walk wrote twice. The page's
+own scripts only call highlights / reading-history APIs; nothing loads text
+on scroll. The journal records 412,045 requests for the whole tier-3 walk; one
+GET per book would be ~5,600.
+
+**The TOC is the one difference left between the readers**: `read_chapter`'s
+"Note Book" sidebar (hidden by default) has a "Title" tab listing chapters;
+`readbook3`'s has only Notes / Highlights.
 
 **The reader endpoint is a TOC flag, not a content class.** `read_chapter`
 means the book has a navigable chapter list, `readbook3` a single flat text.
@@ -52,8 +70,7 @@ Median body sizes are within 1.5% of each other, so **entries in both groups
 are whole works** — the name invites the opposite reading. The flag is on the
 metadata page's button href, so tier 2 captures it without a reader fetch.
 
-**Reading is anonymous.** Only the site's own Download buttons are login-gated,
-and only on `readbook3`. Every route the pipeline uses works logged out.
+**Reading is anonymous.** Only the site's own Download buttons are login-gated. Every route the pipeline uses works logged out.
 
 ## Identifiers
 
