@@ -55,10 +55,12 @@ user-visible items below are fixed.
 
 ## Pipeline
 
-- [ ] **`__content_version__`** (`build_tree.stamp_version`) reads only the
-  fulltext journal, so it still says 2026-09-09 though metadata was fetched
-  2026-11-06. It is also published as `all_stats.sourced` ("data last
-  sourced"). Take the newer of the two journals.
+- [ ] **"Data last sourced" needs a "?" explainer.** `__content_version__`
+  (`build_tree.stamp_version`, published as `all_stats.sourced`) reads only
+  the fulltext journal, and that is deliberate: "sourced" means the last
+  *full* fetch, not the 2026-11-06 metadata top-up. The pipeline date shows
+  that work is happening between full fetches. Add a "?" icon that explains
+  what each date means, rather than changing either date.
 - [ ] **rivulet `check_source_links`**: it asserts on `<select name="type">`
   (gone; it is a hidden input now), and `check_browse_not_inverted` tests the
   old complement logic. Both need rewriting.
@@ -79,6 +81,12 @@ user-visible items below are fixed.
   Sāgarasaṅgama's search. The site-structure.md caution that the flag is
   batch structure, not a per-book judgement, still applies. (Not yet a
   browsing filter or a total.)
-- [ ] **`title_eg`** (English or romanized title) is a new field. It could
-  feed search.
+- [x] **`title_eg`** (romanized, sometimes English title; on every shelf row)
+  now feeds search, never display: `parse_metadata` joins it (entities
+  unescaped, Devanagari values dropped), `tree.json` ships it, the Atlas and
+  Sāgarasaṅgama match against it with hyphens read as spaces. Measured
+  2026-11-10 (catalogue of 11-06): ~30% of values add nothing, ~25% split
+  compounds into words, ~15% carry spellings the fold cannot reach, ~510 hold
+  English words. Messy (typos, Shri/Sri/Shree); make it optional or drop it if
+  it misbehaves.
 - [x] **Sub-category and author links**: done with the browse-link rebuild.

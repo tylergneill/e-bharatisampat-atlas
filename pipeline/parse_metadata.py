@@ -203,6 +203,20 @@ def parse_file(path: Path) -> dict:
     return record
 
 
+def clean_title_eg(value: str | None) -> str | None:
+    """The shelf's `title_eg`, or None if it has nothing to add.
+
+    81 values carry entity residue ("Dhammapala&#039s"), and 2 are Devanagari
+    rather than romanized, which the Devanagari title already covers.
+    """
+    if not value:
+        return None
+    value = " ".join(html.unescape(value).split())
+    if not value or re.search("[ऀ-ॿ]", value):
+        return None
+    return value
+
+
 def key_order(record: dict) -> dict:
     """Identity first, then bibliography, then readers -- stable across records."""
     lead = ["id", "serial", "title"]
@@ -248,13 +262,20 @@ def main() -> int:
     # The same walk says which texts are unproofread: the site shelves them as
     # "AI-converted books". That is a shelf fact, not on the metadata page, so
     # it is joined in here as `ai_converted`.
-    listed, ai_shelf = None, set()
+    #
+    # And it carries `title_eg`, the site's romanized (sometimes English) title,
+    # which the metadata page does not show. It is ad-hoc ASCII with typos and
+    # mixed spellings (Shri/Sri/Shree), so it is for SEARCH ONLY, never shown.
+    listed, ai_shelf, title_eg = None, set(), {}
     if args.catalogue.exists():
         rows = [json.loads(line)
                 for line in args.catalogue.read_text(encoding="utf-8").splitlines()
                 if line.strip()]
         listed = {row["id"] for row in rows}
         ai_shelf = {row["id"] for row in rows if row.get("collection") == "ai"}
+        for row in rows:
+            if row["id"] not in title_eg and (eg := clean_title_eg(row.get("title_eg"))):
+                title_eg[row["id"]] = eg
     delisted = []
 
     records = []
@@ -263,6 +284,8 @@ def main() -> int:
         book_id = record.get("id")
         if book_id in ai_shelf:
             record["ai_converted"] = True
+        if book_id in title_eg:
+            record["title_eg"] = title_eg[book_id]
         record = key_order(record)
 
         if listed is not None and book_id and book_id not in listed:

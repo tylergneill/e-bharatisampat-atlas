@@ -103,7 +103,7 @@ function isExpandAllGesture(ev) {
 // that ensureSchemeCached()/indexedTitle() lazily transliterate per scheme.
 function collectTitledNodes(data) {
   const nodes = [];
-  for (const w of data.works) nodes.push({ id: w.id, title: w.title, author: w.author || "" });
+  for (const w of data.works) nodes.push({ id: w.id, title: w.title, author: w.author || "", titleEg: w.title_eg || "" });
   for (const d of data.axes.category) {
     nodes.push({ id: `cat:${d.title}`, title: d.title });
     for (const s of d.children) {
@@ -191,6 +191,24 @@ function indexedAuthorById(id) {
     state.searchAuthorIndex.set(scheme, idx);
   }
   return idx.get(id) || "";
+}
+
+// The site's own romanized (sometimes English) title, folded the same way and
+// with hyphens read as spaces, so "abhijnana shakuntalam" finds
+// "Abhijnana-shakuntalam". Search only, never shown: it is ad-hoc ASCII with
+// typos and mixed spellings. Scheme-independent, so built once.
+let titleEgIndex = null;
+function foldTitleEg(s) {
+  return foldDiacritics(s).replace(/-/g, " ");
+}
+function indexedTitleEgById(id) {
+  if (!titleEgIndex) {
+    titleEgIndex = new Map();
+    for (const n of state.allTitledNodes) {
+      if (n.titleEg) titleEgIndex.set(n.id, foldTitleEg(n.titleEg));
+    }
+  }
+  return titleEgIndex.get(id) || "";
 }
 
 // --- axis access
@@ -1092,15 +1110,19 @@ function positionStickyHeaders(host) {
 
 function currentSearchMatcher() {
   const q = foldDiacritics(state.searchQuery);
+  const qEg = foldTitleEg(state.searchQuery);
   // Author as well as title: looking for a text by who wrote it is as ordinary
   // as looking for it by name, and the author axis only helps if you already
   // know the name is an author's. Exact mode compares each field whole, so
   // `kalidasa` exactly-matches his works without also matching every title that
   // happens to contain the string.
   if (state.searchExact) {
+    // Exact compares what the reader can SEE, so the hidden title_eg is left
+    // out: it made exact "karmapradipa" match 120 and 10458 but not 9021.
     return (id) => indexedTitleById(id) === q || indexedAuthorById(id) === q;
   }
-  return (id) => indexedTitleById(id).includes(q) || indexedAuthorById(id).includes(q);
+  return (id) => indexedTitleById(id).includes(q) || indexedAuthorById(id).includes(q)
+    || indexedTitleEgById(id).includes(qEg);
 }
 
 // Every entry on one axis that matches, with the ids the renderer needs. Both
@@ -1189,6 +1211,7 @@ async function loadData() {
 
   state.works = new Map(state.data.works.map((w) => [w.id, w]));
   state.allTitledNodes = collectTitledNodes(state.data);
+  titleEgIndex = null;
   state.translitCache = new Map();
   state.searchIndex = new Map();
   state.searchAuthorIndex = new Map();

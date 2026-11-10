@@ -48,6 +48,8 @@ OPTIONAL_FIELDS = (
     "publisher", "publish_year", "printer", "editor", "second_editor",
     "primary_commentator", "secondary_commentator", "tertiary_commentator",
     "commentary_name", "translator", "books_contributor", "pages",
+    # The site's romanized/English title, for search only (see parse_metadata).
+    "title_eg",
 )
 
 
