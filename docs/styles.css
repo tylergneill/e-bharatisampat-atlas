@@ -312,6 +312,10 @@ a.topbar-link:hover { text-decoration: underline; }
 /* The secondary-grouping pill. Same look as .exactToggle but laid out inline in
    the nav rather than absolutely positioned inside the search box. */
 .groupToggle{
+  /* Anchors the visually hidden input below. Without it the input is placed
+     against the page, at the very bottom, and clicking the label scrolls
+     there to focus it: the About page's "show PDF-only" went blank. */
+  position: relative;
   display: inline-flex;
   align-items: center;
   padding: 2px 9px;
