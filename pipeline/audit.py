@@ -136,6 +136,8 @@ OPTIONAL_STATS = frozenset({
     "post_dump_new_pct", "post_dump_reuploads", "reup_within2", "unch_within2",
     # From `catalogue.jsonl`; absent on a checkout that never walked the shelves.
     "unicode_shelf", "unicode_shelf_pdf", "ai_shelf",
+    # From `text_sizes.jsonl`; absent on a checkout without measured text.
+    "markup_pct", "iast_reduction_pct", "raw_total_gb", "iast_total_gb",
 })
 
 # Cached output of pipeline/dump_analysis.py -- minutes of git archaeology over
@@ -543,7 +545,40 @@ def intro_stats(works):
     stats.update(_dump_stats(works))
     stats.update(field_coverage(works))
     stats.update(shelf_stats(works))
+    stats.update(size_ratio_stats())
     return stats
+
+
+def size_ratio_stats(path=TEXT_SIZES_PATH):
+    """The two shares "Calculating Size Information" quotes, from the sizes.
+
+    `markup_pct`: how much of the pages as delivered is discarded to get the
+    text (the site's page code, then the books' own furniture).
+    `iast_reduction_pct`: how much further transliterating to IAST shrinks
+    what is left. Both are byte-weighted over every measured book,
+    a later row winning, as `count_sizes` appends. Missing sizes file means
+    the tags keep their published values (see OPTIONAL_STATS).
+    """
+    if not path.exists():
+        return {}
+    latest = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            row = json.loads(line)
+            latest[row["serial"]] = row
+    rows = [r for r in latest.values() if r.get("raw_bytes") and r.get("content_bytes")]
+    raw = sum(r["raw_bytes"] for r in rows)
+    content = sum(r["content_bytes"] for r in rows)
+    iast = sum(r.get("transliterated_bytes") or 0 for r in rows)
+    if not raw or not content:
+        return {}
+    return {
+        "markup_pct": round((1 - content / raw) * 100),
+        "iast_reduction_pct": round((1 - iast / content) * 100),
+        # The two ends of that chain, in decimal GB as the Atlas counts bytes.
+        "raw_total_gb": round(raw / 1e9, 1),
+        "iast_total_gb": round(iast / 1e9, 1),
+    }
 
 
 def shelf_stats(works, path=CATALOGUE_PATH):

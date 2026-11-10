@@ -94,23 +94,19 @@ parse-metadata:
 # data/text_sizes.jsonl (three byte counts per serial).
 #
 # *** THIS HITS THE NETWORK, and needs `make clearance` first. ***
-# A readbook3 book costs one request PER CHUNK,
-# so budget by REQUESTS, not books. Nothing is ever fetched twice: a book
-# stopped partway resumes at its next chunk, so CHUNKS=n is a checkpoint, not a
-# cap on what you can eventually get.
+# One request per book since the site rebuild (the whole book is one page);
+# the raw page is kept gzipped in data/raw_cache/.
 #
 #   make fetch-text MAX_REQUESTS=0                      # plan only, fetches nothing
 #   make fetch-text MAX_REQUESTS=500                    # a bounded run
-#   make fetch-text MAX_REQUESTS=2000 MAX_CHUNKS=20     # the ~83% cheaply
-#   make fetch-text MAX_CHUNKS=100                      # continue the tail
-#   make fetch-text                                     # everything, no ceiling
+#   make fetch-text                                     # everything not yet refetched
+#   make fetch-text ARGS="--reextract"                  # raw_cache -> text + sizes, offline
 #   make fetch-text MAX_REQUESTS=50 DELAY=3 ARGS="--reader read_chapter"
 #
 # Ctrl-C stops cleanly (exit 0) and a rerun resumes.
 fetch-text:
 	python -m pipeline.fulltext \
 	  $(if $(MAX_REQUESTS),--max-requests $(MAX_REQUESTS)) \
-	  $(if $(MAX_CHUNKS),--max-chunks $(MAX_CHUNKS)) \
 	  $(if $(DELAY),--delay $(DELAY)) \
 	  $(ARGS)
 

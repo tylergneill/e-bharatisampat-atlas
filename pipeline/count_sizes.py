@@ -64,16 +64,19 @@ def measure(text: str) -> dict:
     holds extracted text, so this stage reports the two counts that are
     genuinely functions of it and leaves raw_bytes to the fetch journal.
     """
+    # Furniture (site chrome, scan watermarks, page-number and separator lines)
+    # is not text, so both counts are taken after it is gone: `content_bytes`
+    # is then everything kept from the page, and raw -> content -> IAST reads
+    # as two reductions, extraction then transliteration.
+    text = strip_furniture(text)
     deva = devanagari_chars(text)
     content_bytes = len(text.encode("utf-8"))
     return {
         "content_bytes": content_bytes,
-        # This is the figure the Atlas displays, so the site's own page
-        # chrome is stripped before measuring -- see `strip_furniture`. A book
-        # with no Devanagari has nothing to transliterate; some readers serve
-        # roman-script records or whole romanized editions (serials 584, 2367,
-        # 5630), and those keep their content size.
-        "transliterated_bytes": (len(to_iast(strip_furniture(text)).encode("utf-8"))
+        # A book with no Devanagari has nothing to transliterate; some readers
+        # serve roman-script records or whole romanized editions (serials 584,
+        # 2367, 5630), and those keep their content size.
+        "transliterated_bytes": (len(to_iast(text).encode("utf-8"))
                                  if deva else content_bytes),
         "devanagari_chars": deva,
     }

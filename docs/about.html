@@ -299,17 +299,22 @@
 
         <h3 id="scraping-metadata">Scraping Metadata</h3>
         <p>
-          The quickest way to a complete list of items is to walk the site's "E-Books" and "Unicode Books" shelves.
+          All scraping for the Atlas is polite: one request at a time, at least 2 seconds apart.
+        </p>
+        <p>
+          The quickest way to a complete list of items is to walk the site's three shelves:
+          "E-Books," "Unicode Books," and "AI-converted books."
           These return the most essential information directly:
-          serial number, title, author, category and subcategory, plus publisher, contributor, and language.
+          serial number, title, author, category and subcategory, plus publisher, contributor, and language,
+          as well as a romanized title, which the Atlas uses for search but does not display.
           Proofreading status is determined by whether a searchable text appears on the "Unicode Books" or the "AI-converted books" shelf.
-          Walking all three takes about 150 requests, or 5–15 minutes.
+          Walking all three takes about 150 requests, or about 5 minutes.
         </p>
         <p>
           The individual metadata pages remain the only source for the remaining fields
           (pages, publication year, printer, editors, commentators, translator)
           and for whether a text is flat or divided into chapters.
-          With polite scraping (2 seconds per request), fetching every one takes about 6 hours.
+          Fetching every one takes one request per item, about 11,000 requests, or about 7 hours.
         </p>
         <p>
           The vast majority of the Atlas is constructed on the basis of this metadata.
@@ -317,21 +322,20 @@
 
         <h3 id="calculating-size">Calculating Size Information</h3>
         <p>
-          Fulltext content is also scraped for the purpose of calculating searchable text size;
-          none is shared publicly, and PDFs were not fetched at all.
-          Because of the frequently deep pagination of "Read Unicode" items — each load is another request —
-          this scrape takes much longer: several weeks of persistently polite scraping.
+          Full texts are scraped only to measure their size; none is published, and PDFs are not fetched.
+          Each text is a single page, so this takes about 5,600 requests, or about 6 hours.
+          Pages are kept as delivered, so text can be re-extracted without refetching.
         </p>
         <p>
-          Size calculation involves two steps:
+          Size is measured in two steps:
         </p>
         <ol>
-          <li>stripping content of markup and headers (30% by data volume), and</li>
-          <li>transliterating from Devanāgarī to IAST.</li>
+          <li>extract the text from the page (discarding <span data-stat="markup_pct">30</span>% of its bytes), and</li>
+          <li>transliterate Devanāgarī to IAST (a further <span data-stat="iast_reduction_pct">50</span>% reduction in bytes).</li>
         </ol>
         <p>
-          IAST text takes up less space (approximately 50% of the Devanāgarī byte count)
-          and is more common for cross-collection size comparisons.
+          Altogether: <span data-stat="raw_total_gb">9.9</span> GB of pages as delivered
+          → <span data-stat="iast_total_gb">1.9</span> GB of IAST text, the sizes the Atlas reports.
         </p>
 
         <h3 id="calculating-dates">Calculating Date Information</h3>

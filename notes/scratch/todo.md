@@ -429,6 +429,13 @@ a fetch-time transformation with no way back.
 
 ## Measure Sanskrit content directly, not by stripping furniture (2026-08-24)
 
+**Superseded in scope (2026-11-10)** by the cross-Atlas spec
+`sagara-sangama/notes/scratch/language-aware-sizing-spec.md` (function-word
+classification, from the vmlt.in prototype). The 2026-11 refetch removed the
+site chrome from the text entirely, and `strip_furniture` now also drops scan
+watermarks, page-number and punctuation-only lines (0.18% of bytes). The
+analysis below is kept for its measurements.
+
 The size pipeline currently measures a book by **subtraction**: take everything
 the reader served, strip the markup and the known chrome, transliterate what is
 left. That makes every size figure only as good as the stripping, and the
@@ -509,7 +516,9 @@ itself the diagnostic for where stripping is failing.
 - [ ] Only then revisit the About page's "Calculating Size Information"
       section — see the item below.
 
-- [ ] **About page wording, independent of the above.** The step-1
+- [x] **About page wording** (2026-11-10): both percentages are now audit
+      stats (`markup_pct`, `iast_pct`), and step 1 says what it is a share of
+      ("of the page's bytes"). Original finding: the step-1
       parenthetical reads "stripping content of markup and headers (30% by
       data volume)", which is ambiguous between "markup is 30% of the raw
       bytes" (true: 28.2%) and "this removes 30% of the content" (wrong
