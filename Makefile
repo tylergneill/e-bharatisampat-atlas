@@ -101,6 +101,10 @@ parse-metadata:
 #   make fetch-text MAX_REQUESTS=500                    # a bounded run
 #   make fetch-text                                     # everything not yet refetched
 #   make fetch-text ARGS="--reextract"                  # raw_cache -> text + sizes, offline
+#
+# A book whose raw page is already in data/raw_cache/ is never fetched again.
+# For a fresh full refetch, move data/raw_cache/ aside first. A page the site
+# truncates is completed in the same run from the old get_unicode.php endpoint.
 #   make fetch-text MAX_REQUESTS=50 DELAY=3 ARGS="--reader read_chapter"
 #
 # Ctrl-C stops cleanly (exit 0) and a rerun resumes.

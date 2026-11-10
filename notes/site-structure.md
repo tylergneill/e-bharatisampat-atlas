@@ -76,6 +76,12 @@ line for line. Only a refetch reveals this kind of change.
   "Google Docs encountered an error", a Google 502), 59 books, mid-sentence;
 - the whole book twice over, 6 books;
 - a broken tag (`<a name='\ …` never closed), 1 book (3161).
+
+**The new reader page truncates some books.** 122, 1104 and 3334 stop
+mid-paragraph at 48%, 15% and 45% of the text `get_unicode.php` still serves
+word for word (checked 2026-11-10). In those pages, and no other of 2,636, the
+container's last `<p>` is never closed. 3334 stops inside "&lt; =&lt;6,", so a
+literal `<` in the text may be what breaks the renderer (unconfirmed).
 rivulet's `extract` handles each and records it in
 `data/text_extract_notes.jsonl`.
 

@@ -30,6 +30,8 @@ Run: python -m pipeline.count_sizes
 
 import argparse
 import json
+import os
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 from pipeline.config import (FULLTEXT_CACHE_DIR, METADATA_PATH, TEXT_LOG_PATH,
@@ -82,12 +84,20 @@ def measure(text: str) -> dict:
     }
 
 
+def _measure_path(path: str) -> dict:
+    """`measure` of one cached file; a top-level function so worker processes
+    can run it. Each worker builds its own transliterator on first use."""
+    return measure(Path(path).read_text(encoding="utf-8"))
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("--cache", type=Path, default=FULLTEXT_CACHE_DIR)
     parser.add_argument("--log", type=Path, default=TEXT_LOG_PATH)
     parser.add_argument("--metadata", type=Path, default=METADATA_PATH)
     parser.add_argument("--out", type=Path, default=TEXT_SIZES_PATH)
+    parser.add_argument("--workers", type=int, default=os.cpu_count(),
+                        help="processes measuring in parallel (default: one per core)")
     parser.add_argument("--serials", type=str,
                         help="measure only these serials (comma-separated) and "
                              "MERGE them into the existing sizes file, leaving "
@@ -183,6 +193,7 @@ def main() -> None:
     counter = LiveCounter("measuring DEV->IAST", total=measurable)
 
     rows, skipped, missing, empty_fetch = [], 0, 0, 0
+    jobs = []
     for serial in serials:
         state = progress[serial]
         if not state["complete"] and not args.include_partial:
@@ -224,29 +235,34 @@ def main() -> None:
                 empty_fetch += 1
             continue
 
-        # Repainted BEFORE the work, not after: a book that never finishes is
-        # the one whose name is needed, and a line painted on completion is
-        # the one line a hang never reaches.
-        counter.update(name)
+        jobs.append((serial, state, name, path))
 
-        record = by_serial.get(serial, {})
-        carried = journal.get(serial, {})
-        row = {
-            "serial": serial,
-            "id": record.get("id"),
-            "reader": record.get("text"),
-            # `raw_bytes` first so it keeps its place ahead of the counts this
-            # stage derives, matching the order the fetcher writes.
-            **({"raw_bytes": carried["raw_bytes"]}
-               if "raw_bytes" in carried else {}),
-            **measure(path.read_text(encoding="utf-8")),
-            "chunks": state["chunks_written"],
-            **{k: v for k, v in carried.items() if k != "raw_bytes"},
-            "file": name,
-        }
-        if not state["complete"]:
-            row["partial"] = True
-        rows.append(row)
+    # Measuring is a pure function of each file, and transliteration costs
+    # about a second per MB, so the books are measured in parallel, one
+    # process per core. Results come back in submission order, so the rows
+    # are identical to a serial run's.
+    with ProcessPoolExecutor(max_workers=args.workers) as pool:
+        measured = pool.map(_measure_path, [str(job[3]) for job in jobs], chunksize=4)
+        for (serial, state, name, path), sizes in zip(jobs, measured):
+            counter.update(name)
+            record = by_serial.get(serial, {})
+            carried = journal.get(serial, {})
+            row = {
+                "serial": serial,
+                "id": record.get("id"),
+                "reader": record.get("text"),
+                # `raw_bytes` first so it keeps its place ahead of the counts
+                # this stage derives, matching the order the fetcher writes.
+                **({"raw_bytes": carried["raw_bytes"]}
+                   if "raw_bytes" in carried else {}),
+                **sizes,
+                "chunks": state["chunks_written"],
+                **{k: v for k, v in carried.items() if k != "raw_bytes"},
+                "file": name,
+            }
+            if not state["complete"]:
+                row["partial"] = True
+            rows.append(row)
 
     counter.close()
 

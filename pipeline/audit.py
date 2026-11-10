@@ -421,14 +421,17 @@ def find_empty_texts(works, path=TEXT_SIZES_PATH):
     }
 
 
-def find_error_pages(works, path=EXTRACT_NOTES_PATH):
-    """Text-bearing works whose stored text holds an error page in place of a
-    part of the book.
+def find_extract_flag(works, key, path=EXTRACT_NOTES_PATH):
+    """Text-bearing works whose latest extraction notes set `key`.
 
-    Read from the extraction notes, not the text: extraction removes the error
-    pages before anything is measured, so the cached text no longer shows
-    them. A later row wins, as extraction is rerun. None when there are no
-    notes on this checkout -- unmeasured, not "none found".
+    `error_pages`: the site's stored text holds an error page in place of a
+    part of the book. `truncated`: the site's reader page stops short of the
+    text the site holds (completed from the old endpoint where possible).
+
+    Read from the extraction notes, not the text: extraction removes or works
+    around these before anything is measured, so the cached text no longer
+    shows them. A later row wins, as extraction is rerun. None when there are
+    no notes on this checkout -- unmeasured, not "none found".
     """
     if not path.exists():
         return None
@@ -438,7 +441,7 @@ def find_error_pages(works, path=EXTRACT_NOTES_PATH):
             row = json.loads(line)
             latest[row["id"]] = row
     found = [w for w in text_bearing(works)
-             if (latest.get(w.get("id")) or {}).get("error_pages")]
+             if (latest.get(w.get("id")) or {}).get(key)]
     found.sort(key=_serial)
     return found
 
@@ -1019,6 +1022,27 @@ def render_error_pages(works, empty=frozenset()):
                    unit=f"{len(works)} items")
 
 
+def render_truncated(works, empty=frozenset()):
+    """Works whose reader page the site cuts short.
+
+    A defect at the source: the site holds the whole text (its older endpoint
+    serves it) but its reader page stops mid-paragraph. The Atlas measures the
+    whole text; a reader on the site sees only part of it.
+    """
+    if works is None:
+        return ""
+    description = "Text items the site's reader <strong>cuts short</strong>"
+    if not works:
+        return _bullet(description, 0, "")
+    preamble = _preamble(
+        "The site holds the whole text of these items, but its reader page "
+        "stops partway through, mid-paragraph. The Atlas measures the whole "
+        "text, taken from the site's older text endpoint.")
+    return _bullet(description, len(works),
+                   preamble + "\n" + _findings_list([_entry_html(w, empty) for w in works]),
+                   unit=f"{len(works)} items")
+
+
 def render_no_devanagari(finding):
     """Works whose text is real but carries no Devanagari.
 
@@ -1066,6 +1090,7 @@ def render_audit_html(findings, empty=frozenset()):
         render_pdf_overshoot(findings["pdf_overshoot"], empty),
         render_empty_texts(findings["empty_texts"], empty),
         render_error_pages(findings["error_pages"], empty),
+        render_truncated(findings["truncated"], empty),
     ) if b]
 
     # Kept out of the list above, which is headed "problems that should be
@@ -1227,7 +1252,8 @@ def main():
         # page groups them.
         "empty_texts": apply_manual_verdicts(
             find_empty_texts(works), *load_manual_verdicts()),
-        "error_pages": find_error_pages(works),
+        "error_pages": find_extract_flag(works, "error_pages"),
+        "truncated": find_extract_flag(works, "truncated"),
     }
 
     print_report(findings["pdf_overshoot"], captured)
@@ -1247,6 +1273,10 @@ def main():
     print(f"\n3. items with an error page in place of text\n", file=sys.stderr)
     print("  no extraction notes on this checkout" if gaps is None
           else f"  {len(gaps)} items", file=sys.stderr)
+    cut = findings["truncated"]
+    print(f"\n4. items the site's reader cuts short\n", file=sys.stderr)
+    print("  no extraction notes on this checkout" if cut is None
+          else f"  {len(cut)} items", file=sys.stderr)
 
     if args.update_about:
         update_about_html(render_audit_html(findings, load_empty_texts()))
