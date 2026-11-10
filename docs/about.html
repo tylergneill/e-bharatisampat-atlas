@@ -63,9 +63,17 @@
         </p>
         <p>
           <span id="contentDate"></span>
+          <button type="button" class="date-help" id="dateHelpToggle" aria-expanded="false"
+                  aria-controls="dateHelp" title="What do these dates mean?">?</button>
         </p>
         <p>
           <span id="pipelineRun"></span>
+        </p>
+        <p id="dateHelp" class="date-help-text" hidden>
+          <strong>Data last sourced</strong> is the last time every text was fetched in full,
+          which is what the sizes are measured from.
+          <strong>Data pipeline last run</strong> is the last time the Atlas was rebuilt,
+          which can add newly listed items and their metadata between full fetches.
         </p>
       </div>
 
@@ -639,20 +647,9 @@
   </main>
 
   <script type="module">
-    const MONTHS = ["Jan", "Feb", "Mar", "Apr", "May", "Jun",
-                    "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
-    /* "2026-08-17" -> "Aug 2026", matching how Sāgarasaṅgama rounds the same
-       figure. A day-level date overstates how current the content is, and the
-       month is the honest granularity. Read off the string rather than parsed
-       with `new Date()`: an ISO date parses as UTC midnight, which is the
-       previous day locally and can print the wrong month. */
-    function monthYear(iso) {
-      const m = /^(\d{4})-(\d{2})/.exec(iso || "");
-      if (!m) return "";
-      const month = MONTHS[Number(m[2]) - 1];
-      return month ? `${month} ${m[1]}` : "";
-    }
+    /* `__content_version__` is shown as the full date. Since the 2026-11 site
+       rebuild a full fetch fits in one day, so the day is honest; the old
+       chunk walk took weeks, which is why this used to round to the month. */
 
     async function loadVersion() {
       try {
@@ -672,7 +669,7 @@
             if (el) el.textContent = `data pipeline last run: ${value}`;
           } else if (key === "__content_version__") {
             const el = document.getElementById("contentDate");
-            if (el) el.textContent = `data last sourced: ${monthYear(value)}`;
+            if (el) el.textContent = `data last sourced: ${value}`;
           }
         }
       } catch (e) {
@@ -681,6 +678,16 @@
     }
 
     loadVersion();
+
+    // A click, not just a hover title, so the explanation also reaches touch.
+    const dateHelpToggle = document.getElementById("dateHelpToggle");
+    const dateHelp = document.getElementById("dateHelp");
+    if (dateHelpToggle && dateHelp) {
+      dateHelpToggle.addEventListener("click", () => {
+        dateHelp.hidden = !dateHelp.hidden;
+        dateHelpToggle.setAttribute("aria-expanded", String(!dateHelp.hidden));
+      });
+    }
   </script>
   <script type="module">
     import { initStaticTranslit } from "./translit-static.js";

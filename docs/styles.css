@@ -1650,3 +1650,25 @@ span[data-stat] { font-weight: 700; }
    never renders on the deployed site. */
 .badgeLocal { opacity: 0.65; }
 .badgeLocal:hover { opacity: 1; }
+
+/* The "?" beside the About page's dates, and the note it reveals. */
+.date-help{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-left: 6px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--panel2);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  vertical-align: middle;
+}
+.date-help:hover,
+.date-help[aria-expanded="true"]{ border-color: var(--accent); color: var(--accent); }
+.date-help-text{ color: var(--muted); font-size: 13px; max-width: 60ch; }
