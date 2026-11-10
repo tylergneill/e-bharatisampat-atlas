@@ -69,7 +69,7 @@ import sys
 import urllib.parse
 from pathlib import Path
 
-from pipeline.config import (CATALOGUE_PATH, DOCS_DIR,
+from pipeline.config import (CATALOGUE_PATH, DOCS_DIR, EXTRACT_NOTES_PATH,
                             METADATA_PATH, TEXT_LOG_PATH, TEXT_SIZES_PATH)
 from pipeline.upload_dates import interpolate_additions
 
@@ -419,6 +419,28 @@ def find_empty_texts(works, path=TEXT_SIZES_PATH):
         "unmeasured": len([w for w in with_text if w.get("id") not in measured]),
         "text_bearing": len(with_text),
     }
+
+
+def find_error_pages(works, path=EXTRACT_NOTES_PATH):
+    """Text-bearing works whose stored text holds an error page in place of a
+    part of the book.
+
+    Read from the extraction notes, not the text: extraction removes the error
+    pages before anything is measured, so the cached text no longer shows
+    them. A later row wins, as extraction is rerun. None when there are no
+    notes on this checkout -- unmeasured, not "none found".
+    """
+    if not path.exists():
+        return None
+    latest = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            row = json.loads(line)
+            latest[row["id"]] = row
+    found = [w for w in text_bearing(works)
+             if (latest.get(w.get("id")) or {}).get("error_pages")]
+    found.sort(key=_serial)
+    return found
 
 
 def capture_date(path=CATALOGUE_PATH):
@@ -975,6 +997,28 @@ def render_empty_texts(finding, empty=frozenset()):
                    unit=f"{len(works)} items")
 
 
+def render_error_pages(works, empty=frozenset()):
+    """Works whose text has an error page where part of the book should be.
+
+    A defect at the source: the site's stored text includes an
+    "Unauthorized" page, a "Google Docs encountered an error" page or a
+    Google 502, mid-sentence, in place of the passage that failed to load.
+    """
+    if works is None:
+        return ""  # no extraction notes: unmeasured, not "none found"
+    description = "Text items with <strong>gaps</strong> (an error page in place of text)"
+    if not works:
+        return _bullet(description, 0, "")
+    preamble = _preamble(
+        "The site's text for these items contains a web error page "
+        "(such as “Unauthorized” or “Google Docs encountered an error”) "
+        "where part of the book should be. The Atlas leaves the error page "
+        "out of its sizes, so they slightly undercount the book.")
+    return _bullet(description, len(works),
+                   preamble + "\n" + _findings_list([_entry_html(w, empty) for w in works]),
+                   unit=f"{len(works)} items")
+
+
 def render_no_devanagari(finding):
     """Works whose text is real but carries no Devanagari.
 
@@ -1021,6 +1065,7 @@ def render_audit_html(findings, empty=frozenset()):
     bullets = [b for b in (
         render_pdf_overshoot(findings["pdf_overshoot"], empty),
         render_empty_texts(findings["empty_texts"], empty),
+        render_error_pages(findings["error_pages"], empty),
     ) if b]
 
     # Kept out of the list above, which is headed "problems that should be
@@ -1182,6 +1227,7 @@ def main():
         # page groups them.
         "empty_texts": apply_manual_verdicts(
             find_empty_texts(works), *load_manual_verdicts()),
+        "error_pages": find_error_pages(works),
     }
 
     print_report(findings["pdf_overshoot"], captured)
@@ -1196,6 +1242,11 @@ def main():
         print(f"  {empty['unmeasured']} text-bearing works not yet fetched; "
               f"rerun after the next `make fetch-text` to cover them",
               file=sys.stderr)
+
+    gaps = findings["error_pages"]
+    print(f"\n3. items with an error page in place of text\n", file=sys.stderr)
+    print("  no extraction notes on this checkout" if gaps is None
+          else f"  {len(gaps)} items", file=sys.stderr)
 
     if args.update_about:
         update_about_html(render_audit_html(findings, load_empty_texts()))

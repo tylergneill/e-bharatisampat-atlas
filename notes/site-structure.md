@@ -64,6 +64,21 @@ GET per book would be ~5,600.
 "Note Book" sidebar (hidden by default) has a "Title" tab listing chapters;
 `readbook3`'s has only Notes / Highlights.
 
+**Texts change in place, silently.** Serial 2718 (Agnipurāṇa, `read_chapter`)
+ended at chapter 291 when fetched 2026-08-15; on 2026-11-10 the same id serves
+through chapter 383, with no new id, date or notice. The first 70% matches
+line for line. Only a refetch reveals this kind of change.
+
+**What the stored text itself contains** (first 2,078 refetched, 2026-11-10):
+- a placeholder instead of text: "Book content is empty." (`readbook3`) or
+  "No chapters found for this book." (`read_chapter`), 12 books;
+- web error pages pasted in where a part failed to load ("Unauthorized",
+  "Google Docs encountered an error", a Google 502), 59 books, mid-sentence;
+- the whole book twice over, 6 books;
+- a broken tag (`<a name='\ …` never closed), 1 book (3161).
+rivulet's `extract` handles each and records it in
+`data/text_extract_notes.jsonl`.
+
 **The reader endpoint is a TOC flag, not a content class.** `read_chapter`
 means the book has a navigable chapter list, `readbook3` a single flat text.
 Median body sizes are within 1.5% of each other, so **entries in both groups

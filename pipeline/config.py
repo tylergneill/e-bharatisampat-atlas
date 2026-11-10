@@ -52,6 +52,11 @@ METADATA_LOG_PATH = DATA_DIR / "metadata_fetch_log.jsonl"
 FULLTEXT_CACHE_DIR = DATA_DIR / "fulltext_cache"
 TEXT_SIZES_PATH = DATA_DIR / "text_sizes.jsonl"
 TEXT_LOG_PATH = DATA_DIR / "text_fetch_log.jsonl"
+# What text extraction found in each page beyond the text itself: error pages
+# embedded in the site's stored text, a book served twice, a "Book content is
+# empty." placeholder. One row per extraction, later rows win; the audit reads
+# it, since the extracted text no longer carries the evidence.
+EXTRACT_NOTES_PATH = DATA_DIR / "text_extract_notes.jsonl"
 # Books still unfinished at the chunk ceiling -- the deep tail, and the
 # candidate list for a manual download. Rewritten on every run.
 TEXT_OPEN_PATH = DATA_DIR / "text_open_books.jsonl"
