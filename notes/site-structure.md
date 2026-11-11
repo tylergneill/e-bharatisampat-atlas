@@ -4,24 +4,86 @@ What we have learned about **ebharatisampat.in from the site itself** — its
 endpoints, its identifiers, and which of its behaviours will mislead a reader
 of its own pages. Add to it; prune only what is disproven.
 
-**Corpus figures are not here.** `make audit` measures them live and writes
+**Corpus figures are not here.** `make audit` re-derives them and writes
 them into `about.html`. Text-acquisition mechanics are not here either: they
 live with the fetcher, in rivulet's `extract/ebharatisampat/fetch_fulltext.py`.
 
-## Endpoints
+## The site was rebuilt in autumn 2026 ("VERSION 4.0.0")
 
-A book has four views, and the id space is shared across all of them.
+Seen 2026-11-06. Routes are extensionless now (`unicodetype`, `readunicode`,
+`readbook3`), though the `.php` forms of the listing, metadata and search pages
+still answer 200. **Plain curl needs no clearance cookie** on any endpoint
+tried that day: the headers show nginx + `PHPSESSID`, no BitNinja.
+
+## Endpoints
 
 | endpoint | serves |
 |---|---|
-| `readSearch.php?id=` | the metadata page — the tier-2 route |
-| `readbook3.php?bookid=` | the flat-text reader (4891 works) |
-| `read_chapter.php?bookid=` | the chaptered reader (666 works) |
-| `ebook/index.php?bookid=` | the PDF reader, present only when a scan exists |
-| `get_unicode.php` (POST `b_id`,`my_id`) | the AJAX text endpoint; mechanics in rivulet |
+| `readSearch.php?id=` / `readunicode?id=` | the metadata page — the tier-2 route |
+| `readbook3?bookid=X&bookname=Y` | the flat-text reader, **whole book inline** in one page |
+| `read_chapter?bookid=X` | the chaptered reader |
+| `ebook_pdf.php?bookid=X` | the PDF reader, present only when a scan exists |
+| `get_unicode.php` (POST `b_id`,`my_id`) | the old AJAX text endpoint — **still live**, byte-identical (serial 2503: 803,232 B, as journalled 2026-08-15) |
+| `filter_books_unicode.php`, `filter_books_ai.php`, `filter_books.php` | POST, JSON: the three listings (below) |
+
+**The pre-rebuild reader URLs are dead.** `readbook3.php?bookid=<id>&pageno=…`
+and `read_chapter.php?bookid=<id>` return an empty shell that JS-redirects to
+the listing; `ebook/index.php?bookid=<id>` is a 404.
+
+**The new reader `bookid` encodes the SERIAL, not the base64 id**, and
+`bookname` the Devanagari title. Each is wrapped five times: decode base64,
+then four rounds of reverse-the-string-and-decode-base64. So links are
+buildable from data we already hold. **`bookname` is optional**: without it
+both readers serve the whole book (2503: 415,733 B against 415,753 with it,
+checked 2026-11-09) and only the browser-tab title goes blank.
 
 **`readunicode.php`, `readpdf.php` and `readSearch.php` are one endpoint.**
 The first two are redundant aliases; all three return the same metadata page.
+The page's `<h5>LABEL: value</h5>` rows became
+`<div class="book-meta-item"><span class="label">…</span><span class="value">…</span>`;
+the title moved to `<h1 class="book-title">`, and TEXT/PDF are now the
+`book-actions` buttons. The field set is unchanged.
+
+The download buttons are **login-gated** (`login.php`) on both readers:
+`readbook3` offers PDF / Word / Text, `read_chapter` Text only (its PDF and
+Word links are commented out). Metadata-page buttons read "Read Unicode",
+"Read Chapter" (singular now) and "Read E-Book". Checked 2026-11-09.
+
+**One `readbook3` GET now holds the whole book**, where `get_unicode.php`
+needs one request per chunk. Checked 2026-11-09 against the cache by
+Devanagari word multiset, after rivulet's `strip_markup` (which lifts the
+`title=` glosses -- skip that and a sacūrṇika book looks ~1% short): 1618
+(1 chunk), 2503 (1) and 640 (318) are **identical**; 6779 (1864 chunks, the
+deepest; 9.3 MB, 3.1 s) has 651 words more than the cache and 1 fewer; 304
+(51) has ~900 fewer, nearly all repeats the chunk walk wrote twice. The page's
+own scripts only call highlights / reading-history APIs; nothing loads text
+on scroll. The journal records 412,045 requests for the whole tier-3 walk; one
+GET per book would be ~5,600.
+
+**The TOC is the one difference left between the readers**: `read_chapter`'s
+"Note Book" sidebar (hidden by default) has a "Title" tab listing chapters;
+`readbook3`'s has only Notes / Highlights.
+
+**Texts change in place, silently.** Serial 2718 (Agnipurāṇa, `read_chapter`)
+ended at chapter 291 when fetched 2026-08-15; on 2026-11-10 the same id serves
+through chapter 383, with no new id, date or notice. The first 70% matches
+line for line. Only a refetch reveals this kind of change.
+
+**What the stored text itself contains** (first 2,078 refetched, 2026-11-10):
+- a placeholder instead of text: "Book content is empty." (`readbook3`) or
+  "No chapters found for this book." (`read_chapter`), 12 books;
+- web error pages pasted in where a part failed to load ("Unauthorized",
+  "Google Docs encountered an error", a Google 502), 59 books, mid-sentence;
+- the whole book twice over, 6 books;
+- a broken tag (`<a name='\ …` never closed), 1 book (3161).
+
+**The new reader page truncates some books.** 122, 1104 and 3334 stop
+mid-paragraph at 48%, 15% and 45% of the text `get_unicode.php` still serves
+word for word (checked 2026-11-10). In those pages, and no other of 2,636, the
+container's last `<p>` is never closed. 3334 stops inside "&lt; =&lt;6,", so a
+literal `<` in the text may be what breaks the renderer (unconfirmed).
+rivulet's `extract` handles each and records it in
+`data/text_extract_notes.jsonl`.
 
 **The reader endpoint is a TOC flag, not a content class.** `read_chapter`
 means the book has a navigable chapter list, `readbook3` a single flat text.
@@ -29,8 +91,7 @@ Median body sizes are within 1.5% of each other, so **entries in both groups
 are whole works** — the name invites the opposite reading. The flag is on the
 metadata page's button href, so tier 2 captures it without a reader fetch.
 
-**Reading is anonymous.** Only the site's own Download buttons are login-gated,
-and only on `readbook3`. Every route the pipeline uses works logged out.
+**Reading is anonymous.** Only the site's own Download buttons are login-gated. Every route the pipeline uses works logged out.
 
 ## Identifiers
 
@@ -45,19 +106,41 @@ and only on `readbook3`. Every route the pipeline uses works logged out.
 - **base64 `id` is the catalogue-wide key.** 11066 distinct ids across 13620
   rows; the ~2554 duplicates *are* the unicode/pdf overlap — the same work as
   text and as scan.
-- **`SERIAL NO.` is 1:1 with `id`** and spans both collections, but appears
-  **only on book pages**, so it costs one fetch per book. `readSearch.php` with
-  a BookId query does the serial → id lookup.
+- **`SERIAL NO.` is 1:1 with `id`** and spans all the shelves. Before the
+  rebuild it appeared only on book pages; **the JSON listings now carry it as
+  `id`** (checked: 11242 ↔ `NDIxODAzNzU3OTgxOTcwMQ==`). The listings do not
+  carry the base64 id, except inside their HTML fragments' `readunicode?id=`
+  hrefs.
 
 The snapshot's `book_id_encoded` is exactly the listing's opaque `id`, which is
 what lets the snapshot be joined to the live catalogue.
 
-## Two collections, not one
+## Three shelves, not one
 
-`unicodetype.php` (text) and `pdf.php` (scans) are separate shelves, and they
-**overlap heavily** — a work can be on both. Neither is the catalogue: the
-union is. Both paginate at `limit=1000&page=N` and are cheaply exhaustible in
-about 15 requests.
+Since the rebuild: `unicodetype` (proofread text), `ai_books` ("AI-converted
+books", unproofread text) and `pdf` (scans). Each pages through a POST JSON
+endpoint (`limit`, `offset`, `sort`, and `cat[]`-style facets), **capped at 100
+records per request**. The whole site takes about 150 requests at roughly 6 s
+each. Each record carries the **serial** (as `id`), `thumbimg`, `pdfurl`,
+category, sub-category, author, publisher, contributor, language, an English
+`title_eg`, and on the text shelves `correct_ocr`.
+
+Full dump 2026-11-06:
+
+| shelf | works | `correct_ocr` |
+|---|---|---|
+| unicode | 4242 | all `1` |
+| ai | 1364 | all `0` |
+| pdf | 9574 | absent |
+
+- unicode ∩ ai = 0; union 5606. **Every one of our 5557 text works is on one
+  of the two text shelves**; 49 shelf works have text we lack.
+- AI shelf ≈ our journalled `unproofread=True` (1314 of 1316).
+- Union of all three = 11212: our 11066 minus 1 (serial 8997, gone) plus 147
+  new since the August scrape. 7 known works gained a PDF.
+
+The PDF and text shelves overlap heavily — a work can be on both. None of
+them is the catalogue: the union is.
 
 **Language is free text**, not a controlled field, and most of the catalogue is
 Sanskrit — but the exact share is a live figure on the About page, not a
@@ -68,11 +151,11 @@ constant to quote from here.
 The site cannot give a consistent account of its own holdings. Four independent
 defects, all verified:
 
-**1. The Unicode listing hides books that have text.** Well over a thousand
-works have a Unicode reader but do not appear on `unicodetype.php`. The
-listing is a *shelf*, not an index of what has text — so never derive
-"how many works have text" from it. Our own metadata says 5557; the listing
-says far fewer.
+**1. The Unicode listing hides books that have text — explained by the
+rebuild.** Well over a thousand works had a Unicode reader but were not on
+`unicodetype.php`. They were the unproofread ones, now shelved separately as
+`ai_books` (see "Three shelves"). "Has text" is still the union of two
+shelves, never the Unicode one alone.
 
 **2. The same URL returns different totals minutes apart.** Readings of 4061,
 4192 and 4212 came from one clearance session on the same day. Within a single
@@ -83,21 +166,19 @@ little (single-digit adds and removals over days), but that is a different and
 much smaller phenomenon than a 151-swing in minutes. **Any site-sourced total
 needs a date attached.**
 
-**3. Every facet parameter is an EXCLUSION list.** The filter parameters name
-the values to leave **out**, not the ones to show — a one-word bug repeated in
-all six of the site's facet handlers, where a variable named for *checked*
-boxes is filled with the unchecked ones. The arithmetic confirms it exactly: a
-category's complement plus that category equals the collection total.
+**3. Facets were EXCLUSION lists — fixed by the rebuild.** Before it, the filter
+parameters named values to leave *out*. Now they are **inclusion** lists
+(2026-11-06): `cat[]=वेदः` gives 46; `sub_cat[]=आयुर्वेदः` gives 107, matching
+its facet count, where the old complement trick gave 32; `author[]=कालिदासः`
+gives 48; `cat[]=All` is harmless. The page keeps its state in
+`?q=<urlsafe-base64(JSON {cat:[…], sort})>`. Legacy `?cat=a,b` and `?cat[]=a`
+are still parsed, but as **inclusion**, so any complement URL built for the old
+bug now shows the opposite of its intent. The JS skips updating the URL once
+it passes 1800 characters.
 
-Three consequences for anyone building a URL:
-
-- **Never pass `All` in a facet parameter** — it excludes everything.
-- **Unknown values are ignored in `cat` but not in `sub_cat`**, so the two do
-  not behave alike; the `cat` complement works and the `sub_cat` complement
-  does not.
-- Prefer `search.php`, which is the sound interface. Where the listings hide
-  books, search does not, and its `<select name="type">` names the accepted
-  values (`book`, `author`, `pub`, …) in the markup.
+`search.php` still honours `type` (कालिदासः: author 125, book 2) and links to
+`readSearch?id=`. Its `<select name="type">` is gone, replaced by a hidden
+`<input name="type">`.
 
 **4. The PDF listing overshoots slightly** — it lists a handful of works whose
 scan does not resolve. Discovered by accident through a *text* discrepancy;
@@ -107,21 +188,25 @@ nothing more.
 
 ## The proofread axis is real but not a census
 
-The site labels its whole Unicode collection "Proofread Books", while a
-substantial minority of complete `readbook3` books carry an **unproofread
-banner in the reader HTML** — invisible to both the listings and the metadata,
-which is where an earlier check looked and found nothing.
+Since the rebuild the site states it outright: unproofread texts are shelved
+as "AI-converted books" (`correct_ocr` 0 in the shelf JSON), proofread ones as
+"Unicode Books" (`correct_ocr` 1). Before that it showed only as a banner in
+the `readbook3` reader HTML ("This text is machine converted"), invisible to
+the listings and the metadata. rivulet's `fetch_fulltext` still probes that
+banner and journals it as `unproofread`; the two agree on 1,314 of 1,316
+books (checked 2026-11-06).
 
-Two cautions:
+Two cautions, unchanged by the rebuild:
 
 - **Do not report the corpus-wide ratio on its own.** It is **batch structure,
   not per-book judgement**: the flag tracks when a book was ingested, not how
   carefully it was read.
-- **`unproofread=False` is not evidence of proofreading.** The site runs a
+- **"Proofread" is not evidence of finished proofreading.** The site runs a
   two-stage *Proofread → Review* workflow tracked to a page offset inside each
-  book, and leaks per-book progress notes into the served text. Every such note
-  found so far sat on a book journalled `False` while stating it was
-  incomplete. `False` means only "the banner sentence did not appear".
+  book, and leaks per-book progress notes into the served text. Every such
+  note found so far sat on a book journalled `unproofread=False` while stating
+  it was incomplete. Neither `False` nor a place on "Unicode Books" means more
+  than "not flagged as machine-converted".
 
 ## Thumbnail filenames are the only "when was this added" signal
 
@@ -143,10 +228,10 @@ announcement**. Re-verify on each pull. Serial order corroborates it
 
 ## The home page advertises a third set of totals
 
-The front page claims more PDFs and more searchable works than either its own
-listings or our metadata. It is a third number, agreeing with neither.
-Usefully, its text count exceeding its own Unicode listing corroborates defect
-§1 from the site's own side.
+Since the rebuild its statistics block matches the listings (9,574 e-books,
+4,242 Unicode, 2026-11-06). Its prose still claims "6,800 books" and "4,500+
+searchable texts", and elsewhere "4,598 digitized texts" — still a third set of
+numbers.
 
 ## Open
 

@@ -35,6 +35,10 @@ SNAPSHOT_SIZES_PATH = DATA_DIR / "snapshot_text_sizes.jsonl"
 # Site-derived: the site's own catalogue, against the snapshot's partial copy.
 CATALOGUE_PATH = DATA_DIR / "catalogue.jsonl"
 
+# Tier 1: the three shelves' raw JSON pages, one dated directory per walk.
+# Kept as served, so a field we didn't think to parse never costs a re-walk.
+SHELVES_CACHE_DIR = DATA_DIR / "shelves_cache"
+
 # The tier-2 metadata cache, keyed on the catalogue's base64 id. Holds raw HTML
 # rather than parsed fields, so a number we didn't think to extract never costs
 # a second scrape. The log beside it is the fetch journal, not the metadata.
@@ -48,6 +52,17 @@ METADATA_LOG_PATH = DATA_DIR / "metadata_fetch_log.jsonl"
 FULLTEXT_CACHE_DIR = DATA_DIR / "fulltext_cache"
 TEXT_SIZES_PATH = DATA_DIR / "text_sizes.jsonl"
 TEXT_LOG_PATH = DATA_DIR / "text_fetch_log.jsonl"
+# What text extraction found in each page beyond the text itself: error pages
+# embedded in the site's stored text, a book served twice, a "Book content is
+# empty." placeholder. One row per extraction, later rows win; the audit reads
+# it, since the extracted text no longer carries the evidence.
+# What the fetcher served, as delivered: one gzipped reader page per book,
+# plus `<serial>.get_unicode/` chunk folders for pages completed elsewhere.
+RAW_CACHE_DIR = DATA_DIR / "raw_cache"
+EXTRACT_NOTES_PATH = DATA_DIR / "text_extract_notes.jsonl"
+# Text the site once served and now does not, moved aside by the fetcher
+# rather than overwritten: one row per move, with when that text was fetched.
+TEXT_PREVIOUS_PATH = DATA_DIR / "text_previous.jsonl"
 # Books still unfinished at the chunk ceiling -- the deep tail, and the
 # candidate list for a manual download. Rewritten on every run.
 TEXT_OPEN_PATH = DATA_DIR / "text_open_books.jsonl"

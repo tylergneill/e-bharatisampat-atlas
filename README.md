@@ -36,6 +36,8 @@ corpus without the acquisition code. These targets exit 2 ("machinery not
 installed") with an explanation rather than half-running:
 
 - `make clearance` — one-time setup the other networked targets depend on.
+- `make walk-shelves` — the site's three shelves as raw JSON →
+  `data/shelves_cache/<date>/`. ~150 requests, 5–15 min.
 - `make fetch-metadata` — one metadata page per catalogue id → raw HTML in
   `data/metadata_cache/`. ~11k requests, so ~6h at one per 2s. Ctrl-C stops
   cleanly and a rerun resumes; nothing is fetched twice.
@@ -51,9 +53,8 @@ installed") with an explanation rather than half-running:
 If `data/` is already populated, the rest of the pipeline runs offline and the
 atlas builds normally:
 
-- `make catalogue LISTINGS=<dir>` — saved listing HTML →
-  `data/catalogue.jsonl`, the site's own catalogue of every distinct work. Does
-  no fetching; point it at pages saved by hand.
+- `make catalogue` — the latest shelf walk → `data/catalogue.jsonl`, one row
+  per item per shelf. Does no fetching.
 - `make parse-metadata` — the raw cache → `docs/data/metadata.json`, one object
   per work. Safe against a partial fetch, and prints field coverage, which is
   the tripwire for the site changing its markup.
@@ -67,8 +68,7 @@ atlas builds normally:
 - `make serve` — serve `docs/` on :8002 (`serve-fulltext` adds the local text
   at `/text/<serial>`, localhost only)
 - `make audit` / `make audit-update-about` — re-derives the figures published on
-  the about page and rewrites only its own marked region. Part of it walks the
-  live site; pass `ARGS=--offline-skip-gap` for our side only.
+  the about page and rewrites only its own marked region. No network.
 
 Figures are measured from the current build and move when the catalogue does;
 re-derive them rather than quoting them.

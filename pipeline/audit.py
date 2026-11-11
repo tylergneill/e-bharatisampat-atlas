@@ -28,77 +28,35 @@ reported with the date they were taken, and described by magnitude.
 
 ## The checks
 
-1. **Works with text that the Unicode Books listing hides.** Every work whose
-   metadata page carries a working text reader is text-bearing; the site's own
-   "Unicode Books" shelf lists far fewer. Measured 1365 hidden on 2026-08-14
-   and 1338 on 2026-08-27, by two independent methods.
+1. **Works the "E-Books" shelf lists without a PDF.** Membership comes from
+   `catalogue.jsonl` (the latest shelf walk), the PDF flag from each work's own
+   metadata page.
+2. **Works whose text is empty at the source**, from the fulltext byte counts.
 
-   Three inputs, each doing one thing:
+Plus one observation, kept out of the findings because nothing is wrong:
+works whose text holds almost no Devanagari.
 
-   - `metadata.json` gives our side of the subtraction, offline: how many works
-     carry a working reader.
-   - one live request (on by default) gives the listing's side, re-derived per
-     run: the headline total on the all-facets URL the site's own "Unicode
-     Books" button leads to. **This is the only source of the published gap** --
-     there is no fallback to a remembered figure, so a run without it states our
-     population, declines to state a gap, and leaves any published gap alone.
-   - `catalogue.jsonl`, our own capture of the listing pages, gives MEMBERSHIP
-     rather than counts, and so is the only thing that can name a specific
-     hidden book. Used only to NAME them -- every one is published, grouped by
-     category -- stamped with the capture's date, and never mixed into the gap.
-
-   That the count and the membership routes agree closely -- 1338 and 1365, by
-   unrelated methods -- is the finding's strongest support, so the report and
-   the page state both rather than picking one.
-
-   A false positive would look like: our reader-detection over-counting, i.e.
-   works we call text-bearing that have no reader. Ruled out at the source --
-   all 1365 cached metadata pages carry a literal `readbook3.php` link, and
-   tier 3 actually fetched text for 1287 of them.
-
-   The category filter is **not** the cause: this reads the unfiltered total
-   directly, so the works are absent from the shelf before any query runs.
-   Earlier versions summed 33 per-category complements to make the same point;
-   that method is gone, but so is the doubt it was answering, since no filter
-   is applied at all now.
-
-   The error also runs one way only -- zero works are shelved WITHOUT a reader
-   -- which the check re-derives rather than assumes, since a nonzero count
-   there would mean the listing is a different population and not merely an
-   incomplete one.
+**Retired 2026-11-09: works with text that "Unicode Books" omitted.** Until the
+site's November 2026 rebuild, ~1,365 works with text and a PDF were shelved
+only under "E-Books". The rebuild gave them their own shelf, "AI-converted
+books", so the omission is no longer a defect; About's "AI-converted Books"
+section describes them instead. That finding was the only one needing a live
+request (the shelf's headline total), so the audit is now offline.
 
 Further checks have candidates waiting in the notes -- author-name variants
-splitting one person, empty-but-listed books, filing inconsistency, the
-`sub_cat` deep-link defect. Each needs to *re-derive* its finding rather than
-restate a stored number, and the shape above is the pattern. Listed in
-`notes/scratch/todo.md` under the audit-pipeline item.
+splitting one person, filing inconsistency. Each needs to *re-derive* its
+finding rather than restate a stored number. Listed in `notes/scratch/todo.md`
+under the audit-pipeline item.
 
-## Offline and online
+## Inputs
 
-Offline checks read `docs/data/metadata.json` and are free, so they always run.
-The one live request runs too, by default: it needs session clearance from
-`make clearance`. It is the default because the finding *is* a subtraction --
-without the listing's side there is no gap to state, only our own count, which
-is almost never the question being asked.
+All local, so every run is free: `docs/data/metadata.json`, `catalogue.jsonl`,
+`text_sizes.jsonl`, `tree.json` and the dump-analysis cache. A figure whose
+input is missing on this checkout keeps its published value rather than being
+blanked (see OPTIONAL_STATS).
 
-That request goes to the all-facets URL the site's own "Unicode Books" button
-leads to, and reads the headline total off it. That is deliberately the number
-an unknowing visitor is handed, which is what makes the gap a statement about
-being misled rather than a curiosity.
-
-`--offline-skip-gap` opts out, and the name is the contract: it skips the
-request AND the gap. With `--update-about` it leaves the published audit region
-exactly as it stands, because a gap-less rewrite would publish a no-gap version
-of a finding this run simply could not measure. The intro's `data-stat` figures
-still refresh -- those are measured from files on disk.
-
-Missing or dead clearance is **inconclusive, not a failure** -- exit 2, the same
-convention as `pipeline/check_source_links.py`. Being unable to ask the site
-says nothing about the collection.
-
-    make audit                            # offline checks + the live total
-    make audit ARGS=--offline-skip-gap    # our side only, gap left alone
-    make audit-update-about               # and rewrite the About region
+    make audit                 # report only
+    make audit-update-about    # and rewrite the About page
 """
 
 import argparse
@@ -108,14 +66,13 @@ import html
 import json
 import re
 import sys
-import urllib.error
 import urllib.parse
-import urllib.request
 from pathlib import Path
 
-from pipeline.config import (CATALOGUE_PATH, CLEARANCE_PATH, DOCS_DIR,
-                            METADATA_PATH, TEXT_LOG_PATH, TEXT_SIZES_PATH,
-                            TREE_PATH)
+from pipeline.config import (CATALOGUE_PATH, DOCS_DIR, EXTRACT_NOTES_PATH,
+                            METADATA_CACHE_DIR, METADATA_PATH, RAW_CACHE_DIR,
+                            SHELVES_CACHE_DIR, TEXT_LOG_PATH,
+                            TEXT_PREVIOUS_PATH, TEXT_SIZES_PATH)
 from pipeline.upload_dates import interpolate_additions
 
 SITE_ROOT = "https://www.ebharatisampat.in"
@@ -172,18 +129,27 @@ NO_DEVANAGARI_SHARE = 0.01
 
 ABOUT_HTML_PATH = DOCS_DIR / "about.html"
 
-# Intro figures that come from the listing capture rather than metadata.json.
-# `catalogue.jsonl` is on disk, so an --offline-skip-gap run still measures these -- but
-# a run with no capture at all cannot, and `update_intro_stats` then leaves the
-# published number alone rather than blanking what it did not measure.
-NETWORK_STATS = frozenset({
-    "both_hidden",
-    # From `tree.json`, which a metadata-only checkout may not have built yet.
-    "subcat_example", "subcat_example_domain", "subcat_example_subs",
+# Intro figures read from files a checkout may not have. When the file is
+# missing, `update_intro_stats` leaves the published number alone rather than
+# blanking what it did not measure.
+OPTIONAL_STATS = frozenset({
     # From `make dump-analysis`; absent unless that cache has been built.
     "dump_files", "dump_compared", "dump_coverage_pct", "post_dump_stamped", "post_dump_new",
     "post_dump_new_pct", "post_dump_reuploads", "reup_within2", "unch_within2",
+    # From `catalogue.jsonl`; absent on a checkout that never walked the shelves.
+    "unicode_shelf", "unicode_shelf_pdf", "ai_shelf",
+    # From `text_sizes.jsonl`; absent on a checkout without measured text.
+    "markup_pct", "iast_reduction_pct", "raw_total_gb", "iast_total_gb",
+    # From `data/raw_cache/`; absent on a checkout that never fetched text.
+    "text_pages", "fallback_texts", "fallback_requests", "text_requests", "text_hours",
+    # From `data/shelves_cache/` and `data/metadata_cache/`, likewise.
+    "shelf_requests", "shelf_minutes", "metadata_requests", "metadata_hours",
 })
+
+# Seconds per request over a whole fetch: the 2s politeness floor, its random
+# 0-0.5s jitter, and the slower `get_unicode.php` responses. Observed over the
+# 2026-11-10 refetch; used only to turn a request count into hours.
+SECONDS_PER_REQUEST = 2.4
 
 # Cached output of pipeline/dump_analysis.py -- minutes of git archaeology over
 # a third-party checkout, so not recomputed per audit run.
@@ -191,33 +157,9 @@ DUMP_STATS_PATH = DOCS_DIR.parent / "data" / "dump_stats.json"
 AUDIT_START_MARKER = "<!-- AUDIT:START -- generated by `python -m pipeline.audit --update-about`; do not hand-edit between these markers -->"
 AUDIT_END_MARKER = "<!-- AUDIT:END -->"
 
-# The listing states its total as `1 - 100 of 151 results`, with an en-dash and
-# loose whitespace. Matching only the tail keeps this indifferent to the
-# separator -- same pattern, same reason, as check_source_links.py.
-LISTING_COUNT_RE = re.compile(r"of\s+(\d+)\s+results", re.I)
-
-# Categories below this many hidden works are listed flat rather than given
-# their own disclosure triangle -- a <details> holding one item is more
-# machinery than the item is worth.
-MIN_GROUP = 2
-
-# The two browsable listings each finding is measured against, unfiltered. Each
-# finding links to the exact view a reader would need to check it by hand, so
-# "these are missing from that listing" is one click from being verified.
-UNICODE_BROWSE_URL = (SITE_ROOT + "/unicodetype.php?cat=All&sub_cat=All&author=All"
-                      "&publisher=All&contributor=All&language=All&sort=ASC")
-PDF_BROWSE_URL = SITE_ROOT + "/pdf.php?cat=All"
-
-# Every hidden work is published, grouped by category, rather than a sample.
-# The whole point of the finding is that specific texts are missing, and a
-# reader who wants to check one needs to be able to find the one they care
-# about -- a 12-item sample answers "does this happen" but not "is my book
-# affected". ~1365 items is ~350 KB of markup, all of it inside collapsed
-# <details>, so nothing renders until a reader opens the category they want.
-
-
-class Inconclusive(RuntimeError):
-    """The site could not be asked -- not an answer about the collection."""
+# The listing the overshoot finding is measured against, unfiltered, so a
+# reader can check it by hand in one click.
+PDF_BROWSE_URL = SITE_ROOT + "/pdf"
 
 
 # --- inputs -----------------------------------------------------------------
@@ -229,38 +171,21 @@ def load_works(path=METADATA_PATH):
     return json.loads(path.read_text())
 
 
-def load_listing_capture(path=CATALOGUE_PATH):
-    """Which ids the Unicode Books listing actually held, from our own capture.
+def load_pdf_shelf(path=CATALOGUE_PATH):
+    """Which ids the "E-Books" shelf held, from the latest shelf walk.
 
-    `catalogue.jsonl` is the parsed listing pages themselves, so it records
-    MEMBERSHIP where the live total records only a count. That is the one thing
-    the count cannot supply and the finding needs: without it we know how many
-    works are missing but cannot name a single one.
-
-    It is a capture with a date on it, not a live reading, so it is used only
-    to name the affected works and never to state the gap -- the gap comes from
-    the live total, re-derived per run. Returns (None, None) when the capture is
-    absent, which costs the names but not the count.
-
-    The PDF listing's membership comes back too, as the second element. It is
-    what shows the omitted works are *listed, just not as texts*: every one has
-    a PDF and appears on the E-Books shelf, which is a correct place for it.
-    The defect is the absence from the Unicode shelf they equally belong on,
-    not the presence on this one. It also carries the converse defect -- works
-    the PDF listing shelves that have no PDF at all.
+    Membership, not a count, so the finding can name each work. None when
+    there is no capture, which costs the finding but nothing else.
     """
     if not path.exists():
-        return None, None
-    ids, pdf_ids = set(), set()
+        return None
+    ids = set()
     for line in path.read_text(encoding="utf-8").splitlines():
-        if not line.strip():
-            continue
-        row = json.loads(line)
-        if row.get("collection") == "unicode":
-            ids.add(row["id"])
-        elif row.get("collection") == "pdf":
-            pdf_ids.add(row["id"])
-    return (ids or None), (pdf_ids or None)
+        if line.strip():
+            row = json.loads(line)
+            if row.get("collection") == "pdf":
+                ids.add(row["id"])
+    return ids or None
 
 
 def load_empty_texts(path=TEXT_SIZES_PATH):
@@ -413,7 +338,27 @@ def load_manual_verdicts(path=MANUAL_VERDICTS_PATH):
     return verdicts, (data.get("labels") or {})
 
 
-def apply_manual_verdicts(finding, verdicts, labels):
+def load_previous_texts(path=TEXT_PREVIOUS_PATH):
+    """Serial -> when the text the site no longer serves was fetched (ISO).
+
+    Written by the fetcher when an empty extraction would have replaced
+    non-empty text: the old file is moved to `data/fulltext_previous/` and a
+    row recorded here. Measured, not hand-checked -- the text is on disk.
+    """
+    previous = {}
+    if path.exists():
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                row = json.loads(line)
+                previous[str(row["serial"])] = row.get("fetched_at")
+    return previous
+
+
+PREVIOUS_KEY = "had_text_previously"
+PREVIOUS_LABEL = "text previously available (at date given), now empty"
+
+
+def apply_manual_verdicts(finding, verdicts, labels, previous=None):
     """Partition an empty-text finding by hand-checked verdict.
 
     Two guards, both hard errors rather than warnings, because a stale
@@ -455,9 +400,24 @@ def apply_manual_verdicts(finding, verdicts, labels):
             f"stale and must go -- or the serial is wrong. A verdict may only "
             f"narrow a measurement, never assert one.")
 
+    # A measured group comes before the hand-checked ones: a work whose text
+    # the site served before and serves no longer. A verdict cannot coexist
+    # with it -- "confirmed to have no text" is the opposite claim.
+    previous = previous or {}
+    clash = sorted(set(previous) & set(verdicts), key=int)
+    if clash:
+        raise SystemExit(
+            f"{MANUAL_VERDICTS_PATH.name} has verdicts for works whose earlier "
+            f"text is on disk ({TEXT_PREVIOUS_PATH.name}): {', '.join(clash)}\n"
+            f"  They had text; the verdict must go.")
+
     groups = collections.defaultdict(list)
     for work in empty:
-        entry = verdicts.get(str(_serial_num(work)))
+        serial = str(_serial_num(work))
+        if serial in previous:
+            groups[PREVIOUS_KEY].append(work)
+            continue
+        entry = verdicts.get(serial)
         groups[entry["verdict"] if entry else None].append(work)
 
     finding["verdicts"] = {
@@ -465,7 +425,8 @@ def apply_manual_verdicts(finding, verdicts, labels):
         # nobody has looked at. It is a real bucket and must keep its own name.
         (key or "unexplained"): works for key, works in groups.items()
     }
-    finding["labels"] = dict(labels)
+    finding["labels"] = {PREVIOUS_KEY: PREVIOUS_LABEL, **labels}
+    finding["previous"] = previous
     finding["explained"] = sum(len(w) for k, w in groups.items() if k)
     return finding
 
@@ -507,6 +468,31 @@ def find_empty_texts(works, path=TEXT_SIZES_PATH):
     }
 
 
+def find_extract_flag(works, key, path=EXTRACT_NOTES_PATH):
+    """Text-bearing works whose latest extraction notes set `key`.
+
+    `error_pages`: the site's stored text holds an error page in place of a
+    part of the book. `truncated`: the site's reader page stops short of the
+    text the site holds (completed from the old endpoint where possible).
+
+    Read from the extraction notes, not the text: extraction removes or works
+    around these before anything is measured, so the cached text no longer
+    shows them. A later row wins, as extraction is rerun. None when there are
+    no notes on this checkout -- unmeasured, not "none found".
+    """
+    if not path.exists():
+        return None
+    latest = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            row = json.loads(line)
+            latest[row["id"]] = row
+    found = [w for w in text_bearing(works)
+             if (latest.get(w.get("id")) or {}).get(key)]
+    found.sort(key=_serial)
+    return found
+
+
 def capture_date(path=CATALOGUE_PATH):
     """When the listing capture was taken -- the mtime, since the file itself
     carries no timestamp. Published beside the listing so a reader knows it is
@@ -515,60 +501,10 @@ def capture_date(path=CATALOGUE_PATH):
     return stamp.isoformat()
 
 
-def load_clearance(path):
-    """Delegates to rivulet's shared reader -- see `pipeline/fetch.py`.
-
-    The third caller the old comment here was waiting for turned out to be the
-    move itself: both networked readers went to rivulet, so the two identical
-    copies finally folded into `rivulet/verify/ebharatisampat/reader.py`.
-
-    A missing rivulet raises `Inconclusive` rather than exiting, because that
-    is exactly what this is -- the site could not be asked, which says nothing
-    about the collection. Every offline check in this module still runs.
-    """
-    from pipeline import fetch as fetch_shim
-    if not fetch_shim.available():
-        raise Inconclusive(
-            "the acquisition machinery is not installed "
-            "(pip install -e ../../rivulet)")
-    return fetch_shim.reader().load_clearance(path)
-
-
-def fetch(url, clearance, timeout=30):
-    """One page, with clearance. The implementation lives in rivulet."""
-    from pipeline import fetch as fetch_shim
-    if not fetch_shim.available():
-        raise Inconclusive(
-            "the acquisition machinery is not installed "
-            "(pip install -e ../../rivulet)")
-    reader = fetch_shim.reader()
-    try:
-        return reader.fetch(url, clearance, timeout=timeout)
-    except reader.Inconclusive as err:
-        # Re-raised as THIS module's class, so every caller's `except
-        # Inconclusive` keeps working regardless of where the read happened.
-        raise Inconclusive(str(err)) from err
-
-
-def listing_total(url, clearance):
-    """Result count for one `unicodetype.php` URL. None if unparseable.
-
-    None is distinct from 0: 0 is an answer, None means the listing no longer
-    says how many it found, which is a shape change and must not be silently
-    summed as nothing.
-    """
-    match = LISTING_COUNT_RE.search(fetch(url, clearance))
-    return int(match.group(1)) if match else None
-
-
-# --- check 1: works with text that the Unicode listing hides ----------------
-
-
 def text_bearing(works):
     """Works whose metadata page carries a working text reader.
 
     `text` holds the reader kind (`readbook3` or `read_chapter`) or is absent.
-    This is the population the Unicode Books listing purports to be.
     """
     return [w for w in works if w.get("text")]
 
@@ -598,42 +534,6 @@ AUTHOR_PCT_DOMAINS = {
     "author_pct_upanisads": "उपनिषदः",
     "author_pct_sahitya": "साहित्यम्",
 }
-
-# The sub-category the "Presentation of Categories and Authors" paragraph uses
-# to demonstrate the `sub_cat` deep-link defect, and the domain holding it.
-# Both figures are quoted there against the listing's own, so they move with a
-# rebuild instead of being retyped.
-SUBCAT_EXAMPLE_DOMAIN = "उपवेदाः"
-SUBCAT_EXAMPLE_SUB = "आयुर्वेदः"
-
-
-def subcategory_stats(tree_path=TREE_PATH):
-    """Atlas counts for the sub-category example, read from `tree.json`.
-
-    Deliberately NOT from `metadata.json` like every other intro figure. The
-    sentence these land in says what *the Atlas shows*, and the Atlas shows
-    the tree -- which suppresses the reader of works measured empty
-    (`build_tree.work_from_metadata`). On 2026-08-24 that is the whole gap:
-    metadata counts 187 text-bearing आयुर्वेदः works, the tree publishes 184.
-    Quoting metadata's figure here would print a number the page's own browser
-    contradicts three rows down.
-
-    Missing tree means the tags keep their published values, same convention as
-    NETWORK_STATS -- a figure we could not measure is not a figure to blank.
-    """
-    if not tree_path.exists():
-        return {}
-    works = json.loads(tree_path.read_text(encoding="utf-8"))["works"]
-    in_domain = [w for w in works
-                 if w.get("domain") == SUBCAT_EXAMPLE_DOMAIN and w.get("text")]
-    return {
-        "subcat_example": sum(1 for w in in_domain
-                              if w.get("sub_domain") == SUBCAT_EXAMPLE_SUB),
-        "subcat_example_domain": len(in_domain),
-        "subcat_example_subs": len({w.get("sub_domain") for w in in_domain
-                                    if w.get("sub_domain")}),
-    }
-
 
 def field_coverage(works):
     """Per-field counts and percentages for the Metadata Pages table.
@@ -666,19 +566,13 @@ def field_coverage(works):
     return stats
 
 
-def intro_stats(works, hidden=None):
+def intro_stats(works):
     """The figures the hand-written Practical Intro quotes, re-derived.
 
     These are the Venn's six numbers plus the two reader-kind counts. They were
     hand-typed until 2026-08-21 and had no way to notice a metadata rebuild
     moving them -- the same failure mode the audit region exists to prevent, so
     they are now published by the run that measures them.
-
-    All of the above are a pure function of `metadata.json`. `hidden` is not:
-    `both_hidden` counts the both-type works the Unicode listing omits, which
-    only the listing capture can say. Pass the `hidden_books` finding to get it;
-    omit it -- or run with no capture on disk -- and the tag is left as
-    published rather than blanked.
     """
     text = sum(1 for w in works if w.get("text"))
     pdf = sum(1 for w in works if w.get("pdf"))
@@ -694,10 +588,6 @@ def intro_stats(works, hidden=None):
         "read_chapter": kinds.get("read_chapter", 0),
         "readbook3": kinds.get("readbook3", 0),
     }
-    if hidden and hidden.get("also_in_pdf") is not None:
-        # Hidden text-bearing works that DO sit on the E-Books shelf: exactly
-        # the both-type items the Unicode listing drops.
-        stats["both_hidden"] = hidden["also_in_pdf"]
 
     # Language: what share of the collection carries no Sanskrit at all. The
     # field is free text and inconsistent ("English" appears four ways), so
@@ -726,8 +616,111 @@ def intro_stats(works, hidden=None):
 
     stats.update(_dump_stats(works))
     stats.update(field_coverage(works))
-    stats.update(subcategory_stats())
+    stats.update(shelf_stats(works))
+    stats.update(size_ratio_stats())
+    stats.update(fetch_cost_stats())
+    stats.update(scrape_cost_stats())
     return stats
+
+
+def scrape_cost_stats(shelves_dir=SHELVES_CACHE_DIR, metadata_dir=METADATA_CACHE_DIR):
+    """What the two metadata scrapes cost, counted from what they left on disk:
+    one file per shelf page in the latest walk, one per item's metadata page."""
+    stats = {}
+    walks = sorted(d for d in shelves_dir.glob("*") if d.is_dir()) if shelves_dir.exists() else []
+    if walks:
+        pages = sum(1 for f in walks[-1].rglob("*") if f.is_file() and f.parent != walks[-1])
+        if pages:
+            stats["shelf_requests"] = round(pages, -1)
+            stats["shelf_minutes"] = round(pages * SECONDS_PER_REQUEST / 60)
+    if metadata_dir.exists():
+        pages = sum(1 for _ in metadata_dir.glob("*.html"))
+        if pages:
+            stats["metadata_requests"] = round(pages, -3)
+            stats["metadata_hours"] = round(pages * SECONDS_PER_REQUEST / 3600)
+    return stats
+
+
+def fetch_cost_stats(raw_dir=RAW_CACHE_DIR):
+    """What a full text fetch costs, counted from what it left on disk.
+
+    One request per reader page, plus one per `get_unicode.php` chunk for the
+    texts whose page was cut short or a placeholder. Every request leaves a
+    file, so the files are the count. Missing cache -> the tags keep their
+    published values (see OPTIONAL_STATS).
+    """
+    if not raw_dir.exists():
+        return {}
+    pages = sum(1 for _ in raw_dir.glob("*.html.gz"))
+    folders = list(raw_dir.glob("*.get_unicode"))
+    chunks = sum(1 for f in folders for _ in f.glob("*.html.gz"))
+    if not pages:
+        return {}
+    requests = pages + chunks
+    return {
+        "text_pages": pages,
+        "fallback_texts": len(folders),
+        "fallback_requests": chunks,
+        # Rounded as the prose says "about": to the hundred, and to the hour.
+        "text_requests": round(requests, -2),
+        "text_hours": round(requests * SECONDS_PER_REQUEST / 3600),
+    }
+
+
+def size_ratio_stats(path=TEXT_SIZES_PATH):
+    """The two shares "Calculating Size Information" quotes, from the sizes.
+
+    `markup_pct`: how much of the pages as delivered is discarded to get the
+    text (the site's page code, then the books' own furniture).
+    `iast_reduction_pct`: how much further transliterating to IAST shrinks
+    what is left. Both are byte-weighted over every measured book,
+    a later row winning, as `count_sizes` appends. Missing sizes file means
+    the tags keep their published values (see OPTIONAL_STATS).
+    """
+    if not path.exists():
+        return {}
+    latest = {}
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            row = json.loads(line)
+            latest[row["serial"]] = row
+    rows = [r for r in latest.values() if r.get("raw_bytes") and r.get("content_bytes")]
+    raw = sum(r["raw_bytes"] for r in rows)
+    content = sum(r["content_bytes"] for r in rows)
+    iast = sum(r.get("transliterated_bytes") or 0 for r in rows)
+    if not raw or not content:
+        return {}
+    return {
+        "markup_pct": round((1 - content / raw) * 100),
+        "iast_reduction_pct": round((1 - iast / content) * 100),
+        # The two ends of that chain, in decimal GB as the Atlas counts bytes.
+        "raw_total_gb": round(raw / 1e9, 1),
+        "iast_total_gb": round(iast / 1e9, 1),
+    }
+
+
+def shelf_stats(works, path=CATALOGUE_PATH):
+    """Shelf sizes for the intro, from the latest shelf walk.
+
+    "With a PDF" means on the E-Books shelf AND a PDF on the work's own page,
+    the same `pdf` flag the Venn counts, so the two figures sum to its "both".
+    Shelf membership alone overcounts: a few works are shelved as E-Books with
+    no PDF on their page. Missing catalogue means the tags keep their
+    published values (see OPTIONAL_STATS).
+    """
+    if not path.exists():
+        return {}
+    has_pdf = {w["serial"] for w in works if w.get("pdf")}
+    shelves = collections.defaultdict(set)
+    for line in path.read_text(encoding="utf-8").splitlines():
+        if line.strip():
+            row = json.loads(line)
+            shelves[row["collection"]].add(row["serial"])
+    return {
+        "unicode_shelf": len(shelves["unicode"]),
+        "unicode_shelf_pdf": len(shelves["unicode"] & shelves["pdf"] & has_pdf),
+        "ai_shelf": len(shelves["ai"]),
+    }
 
 
 # Serial bands for the "Understanding Serials" table. Fixed 500-wide rows on
@@ -846,7 +839,7 @@ def _dump_stats(works):
     Read from `data/dump_stats.json`, written by `make dump-analysis` -- the
     comparison walks a third-party git checkout and takes minutes, so it is
     cached rather than recomputed on every audit run. Absent cache means the
-    tags keep their published values (see NETWORK_STATS).
+    tags keep their published values (see OPTIONAL_STATS).
     """
     if not DUMP_STATS_PATH.exists():
         return {}
@@ -856,17 +849,6 @@ def _dump_stats(works):
     cached["post_dump_new_pct"] = round(
         cached["post_dump_new"] / cached["post_dump_stamped"] * 100, 1)
     return cached
-
-
-def our_text_counts(works):
-    """Text-bearing count per category. The listing holds text only, so this --
-    never our headline total -- is what its per-category number compares to."""
-    counts = {}
-    for work in text_bearing(works):
-        domain = work.get("domain")
-        if domain:
-            counts[domain] = counts.get(domain, 0) + 1
-    return counts
 
 
 def _serial(work):
@@ -880,123 +862,33 @@ def _serial(work):
     return (serial is None, serial if serial is not None else 0)
 
 
-def find_hidden_books(works, listed=None, listed_ids=None,
-                      pdf_listed_ids=None):
-    """Text-bearing works the Unicode Books listing does not shelve.
+def find_pdf_overshoot(works, pdf_listed_ids=None):
+    """Works the "E-Books" shelf lists whose own page offers no PDF.
 
-    Two independent measurements, deliberately kept apart:
-
-    **The gap** comes from `listed` -- the headline count on the very page the
-    site's own "Unicode Books" button leads to, re-derived every run. That is
-    the number an unknowing visitor is given, which is what makes the gap a
-    statement about being misled rather than a curiosity. Without it there is
-    no gap, and we do NOT fall back to subtracting a remembered figure; a stale
-    number in an authoritative-looking place is the exact failure this module
-    exists to avoid.
-
-    **The names** come from `listed_ids` -- our own capture of the listing
-    pages, which records membership rather than counts and so is the only thing
-    that can identify a specific hidden work. Every one is kept, not a sample.
-    It carries its own date and is never mixed into the gap.
-
-    That the two agree closely (1365 by membership, 1338 by the headline) is
-    itself the finding's strongest support, so both are reported.
+    Over-inclusion: the shelf promises a PDF and the work has none. Verified
+    at the source 2026-08-20: these open and render text, and have no PDF, so
+    the error is the listing's, not our metadata's. None when there is no
+    shelf capture to check against.
     """
-    with_text = text_bearing(works)
-    ours = our_text_counts(works)
-
-    gap = None
-    if listed is not None:
-        gap = len(with_text) - listed
-
-    # The affected works themselves, from membership. Sorted largest first so
-    # the most striking omissions lead each category once grouped.
-    hidden, by_membership, contradictions = [], None, None
-    also_in_pdf, pdf_without_pdf = None, None
-    if listed_ids:
-        hidden = [w for w in with_text if w.get("id") not in listed_ids]
-        by_membership = len(hidden)
-        if pdf_listed_ids:
-            # Where the omitted works DO appear. Derived, not assumed: if the
-            # site were simply dropping them, this would be less than the whole
-            # set, and the "listed, but only under E-Books" claim would be wrong.
-            # They all have PDFs, so the E-Books shelf is a correct place for
-            # them -- the defect is the absence from the Unicode shelf, not the
-            # presence on this one.
-            also_in_pdf = len([w for w in hidden if w.get("id") in pdf_listed_ids])
-            # The PDF listing's own converse defect, checked the same way the
-            # Unicode listing's is, and reported as its own finding: it is a
-            # different error in a different listing, not a footnote to the
-            # first. Verified at the source 2026-08-20: these open and render
-            # text, and have no PDF -- so the overshoot is the listing's, not
-            # our metadata's.
-            pdf_without_pdf = [w for w in works
-                               if w.get("id") in pdf_listed_ids
-                               and not w.get("pdf")]
-            pdf_without_pdf.sort(key=_serial)
-        # The converse defect, checked because its absence is informative: a
-        # work ON the shelf with no reader would mean the listing over-reports
-        # too. Measured zero on 2026-08-14, and the check says so either way.
-        contradictions = len([w for w in works
-                              if w.get("id") in listed_ids and not w.get("text")])
-        # Serial order, not size. Page count stopped being shown, so ordering by
-        # it left a list with no visible principle -- the reader saw an
-        # arbitrary sequence. The serial is the source's own accession number,
-        # so ascending order is both stable across runs and meaningful: it
-        # reads as the order the collection acquired these works.
-        hidden.sort(key=_serial)
-
-    return {
-        "text_bearing": len(with_text),
-        "listed": listed,
-        "gap": gap,
-        "by_membership": by_membership,
-        "contradictions": contradictions,
-        "also_in_pdf": also_in_pdf,
-        "pdf_listed": len(pdf_listed_ids) if pdf_listed_ids else None,
-        # The works themselves, not a count: this is its own finding, and like
-        # every other one it has to reach its artifact in one click.
-        "pdf_without_pdf": pdf_without_pdf,
-        # Every hidden work, largest first. Grouped at render time rather than
-        # here, so the report can count them without caring about the grouping.
-        "hidden": hidden,
-        "our_counts": ours,
-    }
+    if not pdf_listed_ids:
+        return {"pdf_listed": None, "pdf_without_pdf": None}
+    without = [w for w in works
+               if w.get("id") in pdf_listed_ids and not w.get("pdf")]
+    without.sort(key=_serial)
+    return {"pdf_listed": len(pdf_listed_ids), "pdf_without_pdf": without}
 
 
 # --- report -----------------------------------------------------------------
 
 
-def print_report(finding, online, captured):
-    print("\n1. works with text that the Unicode Books listing hides\n")
-    print(f"  text-bearing works in our metadata: {finding['text_bearing']}")
-
-    if online:
-        print(f"  the listing's own headline total: {finding['listed']}")
-        print(f"  hidden, by count:      {finding['gap']}")
-    else:
-        print("  listing total: not measured -- offline run, drop --offline-skip-gap")
-
-    if finding["by_membership"] is not None:
-        print(f"  hidden, by membership:  {finding['by_membership']} "
-              f"(listing capture of {captured})")
-        print(f"  on the shelf but with no reader: {finding['contradictions']}")
-        if finding["also_in_pdf"] is not None:
-            print(f"  of the hidden, also shelved under E-Books: "
-                  f"{finding['also_in_pdf']} -- listed, just not as texts")
-        if finding["pdf_without_pdf"] is not None:
-            print(f"  the converse, in the PDF listing: {finding['pdf_listed']} shelved, "
-                  f"{len(finding['pdf_without_pdf'])} of them with no PDF")
-    else:
-        print("  membership: no listing capture -- counts only, no names "
-              "(run `make catalogue`)")
-
-    if not online:
-        print("\n  Without the live total this states our side of the subtraction only.")
+def print_report(finding, captured):
+    print('\n1. works the "E-Books" shelf lists without a PDF\n')
+    if finding["pdf_without_pdf"] is None:
+        print("  no shelf capture -- run `make walk-shelves` and `make catalogue`")
         return
+    print(f"  {len(finding['pdf_without_pdf'])} of {finding['pdf_listed']} shelved "
+          f"(shelf walk of {captured})")
 
-    print("\n  The category filter is not the cause: the per-category counts are")
-    print("  the listing's own decomposition of that same total.\n")
 
 # --- HTML -------------------------------------------------------------------
 #
@@ -1126,71 +1018,6 @@ def _group_ul(items):
             + "\n          </ul>")
 
 
-def _hidden_listing(finding, empty=frozenset()):
-    """Every hidden work, as nested disclosure bullets grouped by category.
-
-    No table: the shortfall numbers live in each category's own summary line,
-    so one structure carries both "how bad is this category" and "which works",
-    and a reader opens only the category they care about. Same three-level
-    shape as the wikisource audit -- finding > group > items.
-
-    Not a sample. A reader checking whether a text they care about is affected
-    needs the actual list, and counts cannot answer that. ~1365 items is ~350
-    KB of markup, all behind collapsed <details>, so nothing lays out until a
-    category is opened. (The wikisource sibling publishes 468 KB the same way.)
-    """
-    hidden = finding["hidden"]
-    if not hidden:
-        return ""
-
-    groups = {}
-    for work in hidden:
-        groups.setdefault(work.get("domain") or "—", []).append(work)
-
-    ours = finding["our_counts"]
-
-    def entry(work):
-        return _entry_html(work, empty)
-
-    items = []
-    for category, works in sorted(groups.items(), key=lambda kv: -len(kv[1])):
-        unit = f"{len(works)} of {ours.get(category, 0)} omitted"
-        items.append(_sub_bullet(
-            _sa(category), len(works), _findings_list([entry(w) for w in works]),
-            unit=unit,
-        ))
-
-    # No wrapper level. Opening the finding shows the categories directly:
-    # a reader who has already clicked "undercounted by Unicode Books" does not
-    # need a second disclosure restating what they just opened.
-    return _group_ul(items)
-
-
-def render_hidden_books(finding, online, empty=frozenset()):
-    """The finding as one <li>: a summary line, a pointer, then its categories.
-
-    One line of prose, no more -- it names the listing the finding is about and
-    links to it, so the absence can be checked by hand. Everything the old
-    multi-paragraph preamble asserted is either already in the summary line or
-    is per-category detail each sub-issue states about itself.
-    """
-    description = ("Text-and-PDF items <strong>undercounted</strong> by "
-                   "“Unicode Books” (text) browsing")
-    inner = "\n".join([
-        _preamble(f'I.e., these all should be found '
-                  f'<a href="{html.escape(UNICODE_BROWSE_URL)}" target="_blank" '
-                  f'rel="noopener">here</a> '
-                  f'but none of them are.'),
-        _hidden_listing(finding, empty),
-    ])
-
-    if not online:
-        return _bullet(description, 1, inner, unit="not measured in this run")
-
-    return _bullet(description, finding["gap"], inner,
-                   unit=f"{finding['gap']} items")
-
-
 def render_pdf_overshoot(finding, empty=frozenset()):
     """The PDF listing's converse defect, as its own finding.
 
@@ -1203,6 +1030,8 @@ def render_pdf_overshoot(finding, empty=frozenset()):
     the informative outcome and must still be published; `_bullet` handles that.
     """
     works = finding["pdf_without_pdf"]
+    if works is None:
+        return ""  # no shelf capture: unmeasured, not "none found"
     description = ("Text-only items <strong>overcounted</strong> by “E-Books” "
                    "(PDF) browsing")
     if not works:
@@ -1244,11 +1073,14 @@ def render_empty_texts(finding, empty=frozenset()):
         ["unexplained"] if "unexplained" in groups else [])
 
     preamble = _preamble(
-        "These items are supposed to have text but don't. They are still "
-        "displayed in the Atlas if they contain a PDF. Where a group below "
-        "says what was found, that is a hand check of the individual works, "
-        "not a measurement — the audit can see that an item is empty, but not "
-        "why.")
+        "These items are supposed to have text but don't: the site's reader "
+        "shows them as empty, and its older text endpoint, "
+        "<code>get_unicode.php</code>, has no text for them "
+        "either. They are still displayed in the Atlas if they contain a PDF. "
+        "Items whose text was previously available are those the site served "
+        "on an earlier fetch. The other groups are hand checks of the "
+        "individual works, not measurements — the audit can see that an item "
+        "is empty, but not why.")
 
     items = []
     for key in order:
@@ -1256,11 +1088,66 @@ def render_empty_texts(finding, empty=frozenset()):
         if not members:
             continue
         heading = labels.get(key, "not yet checked")
+        previous = finding.get("previous") or {}
+        entries = [_entry_html(w) + (_month_suffix(previous.get(str(_serial_num(w))))
+                                     if key == PREVIOUS_KEY else "")
+                   for w in members]
         items.append(_sub_bullet(html.escape(heading), len(members),
-                                 _findings_list([_entry_html(w)
-                                                 for w in members])))
+                                 _findings_list(entries)))
     return _bullet(description, len(works),
                    preamble + "\n" + _group_ul(items),
+                   unit=f"{len(works)} items")
+
+
+def _month_suffix(stamp):
+    """ISO timestamp -> " (August 2026)", or "" when there is none."""
+    if not stamp:
+        return ""
+    day = datetime.date.fromisoformat(stamp[:10])
+    return f" ({day.strftime('%B %Y')})"
+
+
+def render_error_pages(works, empty=frozenset()):
+    """Works whose text has an error page where part of the book should be.
+
+    A defect at the source: the site's stored text includes an
+    "Unauthorized" page, a "Google Docs encountered an error" page or a
+    Google 502, mid-sentence, in place of the passage that failed to load.
+    """
+    if works is None:
+        return ""  # no extraction notes: unmeasured, not "none found"
+    description = "Text items with <strong>gaps</strong> (an error page in place of text)"
+    if not works:
+        return _bullet(description, 0, "")
+    preamble = _preamble(
+        "The site's text for these items contains a web error page "
+        "(such as “Unauthorized” or “Google Docs encountered an error”) "
+        "where part of the book should be. The Atlas leaves the error page "
+        "out of its sizes, so they slightly undercount the book.")
+    return _bullet(description, len(works),
+                   preamble + "\n" + _findings_list([_entry_html(w, empty) for w in works]),
+                   unit=f"{len(works)} items")
+
+
+def render_truncated(works, empty=frozenset()):
+    """Works whose reader page the site cuts short.
+
+    A defect at the source: the site holds the whole text (its older endpoint
+    serves it) but its reader page stops mid-paragraph. The Atlas measures the
+    whole text; a reader on the site sees only part of it.
+    """
+    if works is None:
+        return ""
+    description = "Text items the site's reader <strong>cuts short</strong>"
+    if not works:
+        return _bullet(description, 0, "")
+    preamble = _preamble(
+        "The site holds the whole text of these items, but its reader page "
+        "stops partway through, mid-paragraph. The Atlas measures the whole "
+        "text, taken from the site's older text endpoint, "
+        "<code>get_unicode.php</code>.")
+    return _bullet(description, len(works),
+                   preamble + "\n" + _findings_list([_entry_html(w, empty) for w in works]),
                    unit=f"{len(works)} items")
 
 
@@ -1297,30 +1184,22 @@ def render_no_devanagari(finding):
                    unit=f"{len(works)} items")
 
 
-def render_audit_html(findings, online, empty=frozenset()):
+def render_audit_html(findings, empty=frozenset()):
     """The whole generated region: one <h3>, a lead-in, and the findings list.
 
     Same shape as the wikisource sibling's "Opportunities for Correction" --
     a single anchorable heading over a flat list of findings, each stating its
-    own numbers and opening onto its own items. The two findings here are the
-    two directions the same defect runs: works left off a listing, and works
-    listed as something they are not.
+    own numbers and opening onto its own items.
 
-    No dates anywhere in the published region. The two findings are measured
-    against different sources -- the first against the live per-category walk,
-    the second against the listing capture, which is the only thing that
-    records membership -- so stamping each with its own date put two different
-    dates side by side and invited the reader to reconcile them. The dates
-    still exist in the run's stderr report, which is where they answer a
-    question someone is actually asking.
+    No dates anywhere in the published region; the run's stderr report carries
+    them, which is where they answer a question someone is actually asking.
     """
-    hidden = findings["hidden_books"]
-
-    bullets = [
-        render_hidden_books(hidden, online, empty),
-        render_pdf_overshoot(hidden, empty),
+    bullets = [b for b in (
+        render_pdf_overshoot(findings["pdf_overshoot"], empty),
         render_empty_texts(findings["empty_texts"], empty),
-    ]
+        render_error_pages(findings["error_pages"], empty),
+        render_truncated(findings["truncated"], empty),
+    ) if b]
 
     # Kept out of the list above, which is headed "problems that should be
     # fixed on ebharatisampat.in". A book printed in roman script is not a
@@ -1415,9 +1294,10 @@ def update_intro_stats(stats, path=ABOUT_HTML_PATH):
     rather than a skip: silently leaving a stale figure on the page is exactly
     the failure this replaces.
 
-    The one exception is a NETWORK_STATS key on an --offline-skip-gap run, where the
-    number is genuinely unmeasured. Those are left as they stand, since the
-    alternative is republishing the page with the figure blanked out.
+    The one exception is an OPTIONAL_STATS key whose input file is missing on
+    this checkout, where the number is genuinely unmeasured. Those are left as
+    they stand, since the alternative is republishing the page with the figure
+    blanked out.
     """
     text = path.read_text(encoding="utf-8")
     seen = set()
@@ -1425,8 +1305,8 @@ def update_intro_stats(stats, path=ABOUT_HTML_PATH):
     def sub(match):
         key = match.group("key")
         if key not in stats:
-            if key in NETWORK_STATS:
-                return match.group(0)  # offline run -- leave the measured value
+            if key in OPTIONAL_STATS:
+                return match.group(0)  # input missing -- leave the measured value
             raise SystemExit(
                 f'{path} tags data-stat="{key}", which the audit does not compute'
             )
@@ -1461,64 +1341,31 @@ def main():
     parser.add_argument("--metadata", type=Path, default=METADATA_PATH,
                         help="our parsed catalogue (docs/data/metadata.json)")
     parser.add_argument("--catalogue", type=Path, default=CATALOGUE_PATH,
-                        help="our capture of the listing pages, for naming the works")
-    parser.add_argument("--clearance", type=Path, default=CLEARANCE_PATH,
-                        help="session clearance from `make clearance`")
-    parser.add_argument("--offline-skip-gap", action="store_true",
-                        help="skip the live request and the gap finding entirely; "
-                             "--update-about then leaves the published gap as it "
-                             "stands instead of replacing it with a no-gap version")
+                        help="the latest shelf walk, for naming the works")
     parser.add_argument("--update-about", action="store_true",
                         help="rewrite the generated region of docs/about.html")
     args = parser.parse_args()
-    # One mode selector, not two knobs. Default: walk the listing and publish the
-    # gap. `--offline-skip-gap`: don't walk, don't touch the published gap. There
-    # is deliberately no third mode that publishes a gap-less audit region --
-    # that only ever destroys a measurement nothing offline can reproduce.
-    args.online = not args.offline_skip_gap
 
     works = load_works(args.metadata)
     date = datetime.date.today().isoformat()
     print(f"auditing {len(works)} works from {args.metadata} ({date})", file=sys.stderr)
 
-    listed_ids, pdf_listed_ids = load_listing_capture(args.catalogue)
-    captured = capture_date(args.catalogue) if listed_ids else None
-    if listed_ids:
-        print(f"listing capture: {len(listed_ids)} shelved ids from {args.catalogue} "
-              f"({captured})", file=sys.stderr)
-    else:
-        print(f"no listing capture at {args.catalogue} -- findings will state counts "
-              f"but name no works", file=sys.stderr)
+    pdf_listed_ids = load_pdf_shelf(args.catalogue)
+    captured = capture_date(args.catalogue) if pdf_listed_ids else None
 
-    listed = None
-    try:
-        if args.online:
-            clearance = load_clearance(args.clearance)
-            print(f"\nasking the Unicode Books listing for its own total:",
-                  file=sys.stderr)
-            listed = listing_total(UNICODE_BROWSE_URL, clearance)
-            if listed is None:
-                raise Inconclusive(
-                    "the Unicode Books listing gave no result count -- it may "
-                    "have changed shape"
-                )
-            print(f"  {listed}", file=sys.stderr)
-        findings = {
-            "hidden_books": find_hidden_books(
-                works, listed, listed_ids, pdf_listed_ids),
-            # Measured first, then narrowed by hand-checked verdicts. The
-            # partition never changes WHICH works are reported -- only how the
-            # page groups them.
-            "empty_texts": apply_manual_verdicts(
-                find_empty_texts(works), *load_manual_verdicts()),
-        }
-    except Inconclusive as err:
-        # Exit 2, not 1. "We could not ask" is not a finding about the
-        # collection, and a scheduled runner should treat them differently.
-        print(f"\nINCONCLUSIVE: {err}", file=sys.stderr)
-        return 2
+    findings = {
+        "pdf_overshoot": find_pdf_overshoot(works, pdf_listed_ids),
+        # Measured first, then narrowed by hand-checked verdicts. The
+        # partition never changes WHICH works are reported -- only how the
+        # page groups them.
+        "empty_texts": apply_manual_verdicts(
+            find_empty_texts(works), *load_manual_verdicts(), load_previous_texts()),
+        "error_pages": find_extract_flag(works, "error_pages"),
+        "truncated": find_extract_flag(works, "truncated"),
+    }
 
-    print_report(findings["hidden_books"], args.online, captured)
+
+    print_report(findings["pdf_overshoot"], captured)
 
     empty = findings["empty_texts"]
     print(f"\n2. items whose text is empty at the source\n", file=sys.stderr)
@@ -1531,18 +1378,21 @@ def main():
               f"rerun after the next `make fetch-text` to cover them",
               file=sys.stderr)
 
+    gaps = findings["error_pages"]
+    print(f"\n3. items with an error page in place of text\n", file=sys.stderr)
+    print("  no extraction notes on this checkout" if gaps is None
+          else f"  {len(gaps)} items", file=sys.stderr)
+    cut = findings["truncated"]
+    print(f"\n4. items the site's reader cuts short\n", file=sys.stderr)
+    print("  no extraction notes on this checkout" if cut is None
+          else f"  {len(cut)} items", file=sys.stderr)
+    had = len(findings["empty_texts"].get("verdicts", {}).get(PREVIOUS_KEY, []))
+    print(f"  {had} empty items had text previously", file=sys.stderr)
+
     if args.update_about:
-        if args.online:
-            update_about_html(render_audit_html(
-                findings, args.online, load_empty_texts()))
-            print(f"\nwrote the audit region of {ABOUT_HTML_PATH}")
-        else:
-            # The gap comes only from the live listing. Rewriting the region
-            # without it would delete a measurement this run cannot reproduce,
-            # so it is left exactly as published.
-            print(f"\nleft the audit region of {ABOUT_HTML_PATH} untouched "
-                  f"(--offline-skip-gap)")
-        tagged = update_intro_stats(intro_stats(works, findings["hidden_books"]))
+        update_about_html(render_audit_html(findings, load_empty_texts()))
+        print(f"\nwrote the audit region of {ABOUT_HTML_PATH}")
+        tagged = update_intro_stats(intro_stats(works))
         print(f"refreshed {tagged} intro figures in the same file")
     else:
         print("\n(report only -- pass --update-about to publish this to the About page)")

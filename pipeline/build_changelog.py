@@ -36,11 +36,11 @@ matching `build_tree`, which drops the reader endpoint for exactly those (66
 works as of 2026-08-26). Both files reach that verdict through
 `build_tree.load_sizes`, so neither can drift from the other.
 
-Counted by **distinct work** (11066). The bands come from each work's own
-metadata page (`text` / `pdf`), not from which listing it appeared in: the
-listings under-report, filing 1365 works under `pdf` alone whose metadata page
-offers both readers (checked against 40 cached pages, 40/40 carrying both).
-That is why `both` is 3912 here and not the 2554 a listing-derived count gives.
+Counted by **distinct work**. The bands come from each work's own metadata
+page (`text` / `pdf`), not from which shelf it appears on -- the same flags
+the About page's diagram counts. (Until the site's November 2026 rebuild the
+text shelf also omitted the unproofread texts, so a shelf-derived count was
+not merely different but wrong.)
 
 A fourth series tracks how much of each period the local snapshot actually
 holds, which is what makes the ~45% scraper failure visible as a time series

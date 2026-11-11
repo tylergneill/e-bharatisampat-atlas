@@ -312,6 +312,10 @@ a.topbar-link:hover { text-decoration: underline; }
 /* The secondary-grouping pill. Same look as .exactToggle but laid out inline in
    the nav rather than absolutely positioned inside the search box. */
 .groupToggle{
+  /* Anchors the visually hidden input below. Without it the input is placed
+     against the page, at the very bottom, and clicking the label scrolls
+     there to focus it: the About page's "show PDF-only" went blank. */
+  position: relative;
   display: inline-flex;
   align-items: center;
   padding: 2px 9px;
@@ -1647,23 +1651,24 @@ span[data-stat] { font-weight: 700; }
 .badgeLocal { opacity: 0.65; }
 .badgeLocal:hover { opacity: 1; }
 
-/* TEMPORARY: the source site was rebuilt (2026-11) and the Atlas has not
-   caught up. Fixed to the viewport so it sits over both pages' fixed-height
-   layouts without resizing them. Same colors in both themes: a warning should
-   look like one either way. Remove once the Atlas is updated. */
-.under-construction{
-  position: fixed;
-  left: 0; right: 0; bottom: 0;
-  z-index: 1000;
-  padding: 14px 16px;
-  background:
-    repeating-linear-gradient(-45deg, #f5b700 0 18px, #ffcc33 18px 36px);
-  color: #111;
-  border-top: 4px solid #111;
-  box-shadow: 0 -4px 16px rgb(0 0 0 / 0.5);
-  font-size: 15px;
-  line-height: 1.4;
-  text-align: center;
+/* The "?" beside the About page's dates, and the note it reveals. */
+.date-help{
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  margin-left: 6px;
+  padding: 0;
+  border: 1px solid var(--border);
+  border-radius: 50%;
+  background: var(--panel2);
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+  vertical-align: middle;
 }
-.under-construction strong{ font-size: 20px; letter-spacing: 0.06em; display: block; }
-.under-construction a{ color: #111; font-weight: 700; text-decoration: underline; }
+.date-help:hover,
+.date-help[aria-expanded="true"]{ border-color: var(--accent); color: var(--accent); }
+.date-help-text{ color: var(--muted); font-size: 13px; max-width: 60ch; }

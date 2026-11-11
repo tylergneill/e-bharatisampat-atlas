@@ -1,5 +1,5 @@
 .PHONY: serve-fulltext parse count-snapshot-sizes \
-        clearance catalogue fetch-metadata parse-metadata fetch-text count-sizes \
+        clearance walk-shelves catalogue fetch-metadata parse-metadata fetch-text count-sizes \
         check-source-links audit audit-update-about dump-analysis \
         build snapshot-tree changelog serve serve-snapshot \
         free-server-port get-server-ip-address
@@ -31,19 +31,28 @@ count-snapshot-sizes:
 # distinct work. Fetched bytes land in a gitignored cache holding RAW responses,
 # so re-deriving a field never needs the network twice.
 #
-#   catalogue --------> data/catalogue.jsonl      11066 distinct works
+#   walk-shelves -----> data/shelves_cache/<date>/   raw JSON, three shelves
+#   catalogue --------> data/catalogue.jsonl      one row per item per shelf
 #   fetch-metadata ---> data/metadata_cache/*.html   raw, one file per work
 #   parse-metadata ---> docs/data/metadata.json   serial, sub-cat, language, ...
 #
 # Fetching here was an explicit decision, not an assumption; keep the rate
 # polite.
 
-# Saved listing HTML -> data/catalogue.jsonl, the site's own catalogue of all
-# 11066 distinct works against the snapshot's 2287. Does NO fetching: point
-# LISTINGS at a directory of pages saved by hand (URLs in the module docstring).
-#   make catalogue LISTINGS=/path/to/saved/html
+# The three shelves (E-Books, Unicode Books, AI-converted books) -> raw JSON
+# pages under data/shelves_cache/<date>/, plus a manifest when complete.
+# *** THIS HITS THE NETWORK. *** ~150 requests, 5–15 min. NEEDS `rivulet`
+# (exits 2 without it). Rerun the same day to resume an interrupted walk.
+#   make walk-shelves
+walk-shelves:
+	python -m pipeline.walk_shelves $(ARGS)
+
+# The latest complete shelf walk -> data/catalogue.jsonl, one row per item per
+# shelf, with serial and base64 id. No network.
+#   make catalogue
+#   make catalogue ARGS="--walk data/shelves_cache/2026-11-06"
 catalogue:
-	python -m pipeline.parse_listings --listings $(LISTINGS)
+	python -m pipeline.parse_listings $(ARGS)
 
 # Establish session credentials for the networked targets -> data/clearance.json.
 #
@@ -85,23 +94,23 @@ parse-metadata:
 # data/text_sizes.jsonl (three byte counts per serial).
 #
 # *** THIS HITS THE NETWORK, and needs `make clearance` first. ***
-# A readbook3 book costs one request PER CHUNK,
-# so budget by REQUESTS, not books. Nothing is ever fetched twice: a book
-# stopped partway resumes at its next chunk, so CHUNKS=n is a checkpoint, not a
-# cap on what you can eventually get.
+# One request per book since the site rebuild (the whole book is one page);
+# the raw page is kept gzipped in data/raw_cache/.
 #
 #   make fetch-text MAX_REQUESTS=0                      # plan only, fetches nothing
 #   make fetch-text MAX_REQUESTS=500                    # a bounded run
-#   make fetch-text MAX_REQUESTS=2000 MAX_CHUNKS=20     # the ~83% cheaply
-#   make fetch-text MAX_CHUNKS=100                      # continue the tail
-#   make fetch-text                                     # everything, no ceiling
+#   make fetch-text                                     # everything not yet refetched
+#   make fetch-text ARGS="--reextract"                  # raw_cache -> text + sizes, offline
+#
+# A book whose raw page is already in data/raw_cache/ is never fetched again.
+# For a fresh full refetch, move data/raw_cache/ aside first. A page the site
+# truncates is completed in the same run from the old get_unicode.php endpoint.
 #   make fetch-text MAX_REQUESTS=50 DELAY=3 ARGS="--reader read_chapter"
 #
 # Ctrl-C stops cleanly (exit 0) and a rerun resumes.
 fetch-text:
 	python -m pipeline.fulltext \
 	  $(if $(MAX_REQUESTS),--max-requests $(MAX_REQUESTS)) \
-	  $(if $(MAX_CHUNKS),--max-chunks $(MAX_CHUNKS)) \
 	  $(if $(DELAY),--delay $(DELAY)) \
 	  $(ARGS)
 
@@ -137,24 +146,11 @@ check-source-links:
 # docs/about.html between the AUDIT markers. A finding is for a human to look
 # at, never an auto-correction.
 #
-# Offline checks read docs/data/metadata.json and always run. The live walk runs
-# too, BY DEFAULT: it needs `make clearance` first and costs ~33 requests at one
-# per 2s (~2 min). Without clearance it exits 2 = INCONCLUSIVE, not 1 -- being
-# unable to ask the site says nothing about the collection, same convention as
-# check-source-links.
-#
-# Every number is re-derived by the run that publishes it, so a run without the
-# walk reports NO gap: the listing's half of the subtraction lives on the site,
-# and quoting a remembered figure is the exact failure this guards against.
-#
-# Hence one mode selector rather than two knobs. --offline-skip-gap skips the
-# walk AND the gap: with --update-about it leaves the published audit region
-# untouched, since rewriting it gap-less would delete the per-category listing
-# figures nothing offline can reproduce. The intro's data-stat figures still
-# refresh either way -- those are measured from files on disk.
-#   make audit                                    # report, incl. the live walk
-#   make audit ARGS=--offline-skip-gap            # our side only, gap left alone
-#   make audit-update-about                       # ...and publish it
+# No network: reads metadata.json, catalogue.jsonl and the size files, and
+# re-derives every number it publishes. A figure whose input file is missing on
+# this checkout keeps its published value rather than being blanked.
+#   make audit                # report only
+#   make audit-update-about   # ...and publish it
 audit:
 	python -m pipeline.audit $(ARGS)
 

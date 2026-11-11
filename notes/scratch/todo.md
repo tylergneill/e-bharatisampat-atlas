@@ -7,6 +7,12 @@ Check items off as they're done, and delete a finished item rather than keeping
 it checked — if it left an insight worth having, promote that to a top-level
 note or a code comment first. See `../CLAUDE.md`.
 
+## BLOCKING: the site was rebuilt (seen 2026-11-06)
+
+- [ ] **Work through `site-v4-migration.md`.** Every text and PDF link the
+  Atlas and Sāgarasaṅgama ship is dead, and the category browse link shows the
+  inverse of its category.
+
 ## Growth axis (axis 2) — not built
 
 EBS is the only Atlas with two independent time signals: serial number gives
@@ -154,71 +160,11 @@ already covers the first two items below.
       switch, group pill, badges and work lists without pruning the wikisource
       rules underneath. Folds into the de-wikisource item above.
 
-## The catalogue has drifted since the 2026-08-14 capture (found 2026-08-22)
-
-The listing membership snapshots under `data/listing_membership/` disagree with
-`data/catalogue.jsonl`, and the gap is real movement upstream, not noise:
-**4192 Unicode ids captured 08-14, 4214 on 08-21** — 24 added, 2 dropped, net
-+22. The two dropped are serials 981 (`केशवीशिक्षा`) and 1502
-(`अध्यात्मतरङ्गिणी`); the additions cluster at high serials (9000–10557), which
-reads like recent uploads landing in bulk.
-
-- [ ] **Rerun the metadata fetch, then reparse.** The 24 new ids are not in
-      `docs/data/metadata.json` at all for the fields that matter — 20 of them
-      come back `text=None`, which is our *absence of a record*, not a measured
-      "this work has no text". Until they are fetched we cannot say which of
-      them are text-bearing, and every total derived from the catalogue is
-      quietly stale.
-      `make fetch-metadata` then `make parse-metadata`.
-      *Hits the network; needs `make clearance` first, one request per 2s.*
-
-- [ ] **Supplement the full-text fetch with the new Unicode-text items.**
-      Once the metadata is refreshed, any of the 24 that turn out to carry a
-      reader needs its text fetched so `text_sizes.jsonl` covers it — otherwise
-      the size axis under-reports the works added since 08-14. Of the 4 that
-      already show a reader in current metadata (serials 4633, 8801, 10303,
-      10557, all `readbook3`), only 4633 has been fetched — **8801, 10303 and
-      10557 are missing from `text_sizes.jsonl`**.
-      `make fetch-text` resumes and never refetches, so this is additive:
-      a bounded run (`MAX_REQUESTS=…`) is enough to pick up the tail.
-
-- [ ] **Recheck the "error runs one way only" claim** published in the Data
-      Quality audit. It says *"every item it does show does have text. Nothing
-      is listed that should not be"*, which was true of the 08-14 capture
-      (`contradictions == 0`). On the 08-21 membership it is **not** obviously
-      true: 20 of the 24 additions have no text record. If the refetch confirms
-      they genuinely lack a Unicode reader, the Unicode listing has the same
-      over-inclusion defect the E-Books finding reports, and that sentence in
-      `render_hidden_books` has to go or be qualified.
-
-**Why this was not visible before:** the audit's gap figure comes from the live
-listing total, but the *names* come from `catalogue.jsonl`, which is a
-capture with a date on it. The two were never compared against the membership
-snapshots, so an 8-day drift sat between them unnoticed. Worth deciding whether
-`catalogue.jsonl` should simply be regenerated whenever a membership snapshot
-disagrees with it.
-
 ## Books stopped shallow by `dead-run`
 
-- [ ] **~20 books are still stopped shallow, and are the same shape as the
-      three that were recovered.** Every one stopped at `my_id=4` with 1 chunk
-      written, against page counts up to 1017 — front matter, almost certainly,
-      not an ending. They were out of scope on 2026-09-04 only because that
-      pass took the zero-chunk books; these wrote one chunk and so were not in
-      that set.
-
-          491 539 547 576 636 659 1177 1178 1179 1180 1181 1196 1204 1795
-          8569 518 516 1061 6876 10441
-
-      Note 1177-1181 are five consecutive volumes of one work, all stopped at
-      4, and 539 claims 1017 pages but yielded 308 bytes — the scan's barcode
-      slip. Run them the same way:
-
-          SERIALS=491,539,... PATIENCE=15 ./run_ladder.sh 150 300 600 1200
-
-      *Hits the network; needs `make clearance` first.* Re-derive the list
-      before running — it is a measurement, and the count moved 45 -> 57 as
-      more books were walked.
+- [x] **~20 books stopped shallow** (491 539 547 576 636 659 1177-1181 1196
+      1204 1795 8569 518 516 1061 6876 10441). Closed by the 2026-11-10
+      one-page refetch: all 20 now have full text (539: 308 bytes -> 2.8 MB).
 
 ## The audit classifies 2 works nowhere (2026-09-07, narrowed 2026-09-08)
 
@@ -467,6 +413,13 @@ a fetch-time transformation with no way back.
 
 ## Measure Sanskrit content directly, not by stripping furniture (2026-08-24)
 
+**Superseded in scope (2026-11-10)** by the cross-Atlas spec
+`sagara-sangama/notes/scratch/language-aware-sizing-spec.md` (function-word
+classification, from the vmlt.in prototype). The 2026-11 refetch removed the
+site chrome from the text entirely, and `strip_furniture` now also drops scan
+watermarks, page-number and punctuation-only lines (0.18% of bytes). The
+analysis below is kept for its measurements.
+
 The size pipeline currently measures a book by **subtraction**: take everything
 the reader served, strip the markup and the known chrome, transliterate what is
 left. That makes every size figure only as good as the stripping, and the
@@ -547,7 +500,9 @@ itself the diagnostic for where stripping is failing.
 - [ ] Only then revisit the About page's "Calculating Size Information"
       section — see the item below.
 
-- [ ] **About page wording, independent of the above.** The step-1
+- [x] **About page wording** (2026-11-10): both percentages are now audit
+      stats (`markup_pct`, `iast_pct`), and step 1 says what it is a share of
+      ("of the page's bytes"). Original finding: the step-1
       parenthetical reads "stripping content of markup and headers (30% by
       data volume)", which is ambiguous between "markup is 30% of the raw
       bytes" (true: 28.2%) and "this removes 30% of the content" (wrong

@@ -103,7 +103,7 @@ function isExpandAllGesture(ev) {
 // that ensureSchemeCached()/indexedTitle() lazily transliterate per scheme.
 function collectTitledNodes(data) {
   const nodes = [];
-  for (const w of data.works) nodes.push({ id: w.id, title: w.title, author: w.author || "" });
+  for (const w of data.works) nodes.push({ id: w.id, title: w.title, author: w.author || "", titleEg: w.title_eg || "" });
   for (const d of data.axes.category) {
     nodes.push({ id: `cat:${d.title}`, title: d.title });
     for (const s of d.children) {
@@ -191,6 +191,24 @@ function indexedAuthorById(id) {
     state.searchAuthorIndex.set(scheme, idx);
   }
   return idx.get(id) || "";
+}
+
+// The site's own romanized (sometimes English) title, folded the same way and
+// with hyphens read as spaces, so "abhijnana shakuntalam" finds
+// "Abhijnana-shakuntalam". Search only, never shown: it is ad-hoc ASCII with
+// typos and mixed spellings. Scheme-independent, so built once.
+let titleEgIndex = null;
+function foldTitleEg(s) {
+  return foldDiacritics(s).replace(/-/g, " ");
+}
+function indexedTitleEgById(id) {
+  if (!titleEgIndex) {
+    titleEgIndex = new Map();
+    for (const n of state.allTitledNodes) {
+      if (n.titleEg) titleEgIndex.set(n.id, foldTitleEg(n.titleEg));
+    }
+  }
+  return titleEgIndex.get(id) || "";
 }
 
 // --- axis access
@@ -521,6 +539,11 @@ function renderWorkLi(work) {
   // TOC is a property of the text, not a format of its own -- there is nothing
   // separate to open -- so it stays an unlinked marker.
   if (hasToc) badges.appendChild(el("span", { class: "badge", title: "Has a chapter-by-chapter table of contents on the site" }, "TOC"));
+  // Likewise a property of the text: the site shelves it as "AI-converted
+  // books", i.e. not proofread.
+  if (work.text && work.ai_converted) {
+    badges.appendChild(el("span", { class: "badge", title: "AI-converted text (not proofread)" }, "AI"));
+  }
 
   const pdfHref = pdfUrl(work);
   if (pdfHref) {
@@ -582,23 +605,33 @@ function encodedId(work) {
 
 const SITE_ROOT = "https://www.ebharatisampat.in";
 
-// Text and PDF are two distinct documents, not two renderings of one, and 3912
-// works have both. So each gets its own link off the badge; the title goes to
-// the metadata page, which is the one page that describes the work itself
-// rather than a single format of it.
+// The readers' `bookid` since the site's November 2026 rebuild: the SERIAL,
+// base64-encoded five times with the string reversed between rounds. (Not the
+// metadata page's id; see notes/site-structure.md.) The site's own links also
+// pass `bookname`, the title encoded the same way, but it only sets the tab
+// title -- the book is served in full without it.
+function readerId(work) {
+  if (work.serial == null) return null;
+  let e = String(work.serial);
+  for (let i = 0; i < 4; i++) e = btoa(e).split("").reverse().join("");
+  return btoa(e);
+}
+
+// Text and PDF are two distinct documents, not two renderings of one, and
+// thousands of works have both. So each gets its own link off the badge; the
+// title goes to the metadata page, which is the one page that describes the
+// work itself rather than a single format of it.
 function textUrl(work) {
-  const id = encodedId(work);
-  if (work.text === "readbook3") {
-    // One constant pageno across every readbook3 link in the corpus -- a
-    // session/view token, not a page number.
-    return `${SITE_ROOT}/readbook3.php?bookid=${id}&pageno=MjI0MjQyNjk5NTk=`;
-  }
-  if (work.text === "read_chapter") return `${SITE_ROOT}/read_chapter.php?bookid=${id}`;
+  const id = readerId(work);
+  if (!id) return null;
+  if (work.text === "readbook3") return `${SITE_ROOT}/readbook3?bookid=${id}`;
+  if (work.text === "read_chapter") return `${SITE_ROOT}/read_chapter?bookid=${id}`;
   return null;
 }
 
 function pdfUrl(work) {
-  return work.pdf ? `${SITE_ROOT}/ebook/index.php?bookid=${encodedId(work)}` : null;
+  const id = readerId(work);
+  return work.pdf && id ? `${SITE_ROOT}/ebook_pdf?bookid=${id}` : null;
 }
 
 function metadataUrl(work) {
@@ -607,141 +640,109 @@ function metadataUrl(work) {
 
 // --- links out to the source
 //
-// The source offers two views of a category, and they are good at different
-// things, so a category header gets BOTH rather than us picking for the reader:
+// Two kinds of link, and a heading gets every one that applies:
 //
-//   search  search.php   COMPLETE, but a flat paginated list and nothing more.
-//   browse  unicodetype.php  INCOMPLETE, but genuinely interactive -- the
-//           reader can narrow by author, sub-category, publisher, language,
-//           set the page size, and export.
+//   browse  the site's three shelves -- "Unicode Books" (proofread text),
+//           "AI-converted books" (unproofread text) and "E-Books" (PDFs) --
+//           filtered to this one category, sub-category or author. Each shelf
+//           is interactive: the reader can narrow further by author,
+//           sub-category, publisher or language. No single shelf holds every
+//           work, so a heading gets one link per shelf that has any of its
+//           works, and none for a shelf that has none.
+//   search  search.php, filtered by category or author. One flat list of
+//           texts and PDFs together, and the only one-click complete view.
+//           Search has no sub-category filter, so sub-categories get browse
+//           links only.
 //
-// "Incomplete" is measured, and narrower than an earlier version of this
-// comment claimed. All 33 categories were compared on 2026-08-20:
-//
-//   - The listing holds TEXT-BEARING works only, so its count must be compared
-//     against our `text_count`, never our total. Comparing 151 against our 399
-//     for उपवेदाः -- as this comment once did -- mixes in 163 PDF-only works
-//     and invents a shortfall that is not there.
-//   - Against `text_count` it is EXACT in 18 of 33 categories and within 5% in
-//     25. काव्यानि: listing 590, our txt 590.
-//   - The real shortfall is corpus-wide: the listing holds 4214 where we count
-//     5557 text-bearing works (-24%), and it is concentrated -- दर्शनानि
-//     (1579 -> 908), वेदाङ्गानि (864 -> 502) and वेदः (209 -> 46) hold 1196 of
-//     the 1343 missing.
-//   - The category filter is NOT the cause. The 33 per-category counts sum to
-//     exactly 4214, the unfiltered listing's own total. The works are absent
-//     from the shelf before any filtering happens.
-//
-// So the browse link is faithful to its source; the source's shelf is short.
-// The About page states this, which is the contribution -- a reader on the
-// site alone gets the reduced view with nothing telling them so.
+// Since the site's November 2026 rebuild the shelves' filters are INCLUSION
+// lists, carried in `?q=` as URL-safe base64 of a JSON object -- the format
+// the shelf pages themselves write (notes/site-structure.md §3). Before it,
+// they were exclusion lists, and only a category link could be built at all.
 
 const SEARCH_TYPE_MAX_LENGTH = 100; // the form's own maxlength on `ebs`
 
-// `type` values come from the search form's own `<select name="type">`:
-// book | author | pub | cat | id. Anything else falls through to a book-name
-// search -- a silent wrong answer rather than an error, which is why
-// pipeline/check_source_links.py asserts `type` is still honored.
+// `type` is book | author | pub | cat | id. Anything else falls through to a
+// book-name search -- a silent wrong answer rather than an error.
 function siteSearchUrl(value, type) {
   if (!value || value.length > SEARCH_TYPE_MAX_LENGTH) return null;
   return `${SITE_ROOT}/search.php?ebs=${encodeURIComponent(value)}&type=${type}`;
 }
 
-// Every facet parameter on the listings is an EXCLUSION list -- the site's own
-// JS sends the *unchecked* boxes (`site-structure.md` §3). So to show one
-// value you name all the others, and the two inversions cancel: the reader
-// lands on a page with exactly their value ticked, and every facet then works
-// normally under their clicks.
-//
-// NEVER pass the literal `All`, on any facet. It is treated as just another
-// value to exclude, and on `sub_cat` it silently costs works (151 -> 48 when
-// measured). An omitted parameter is the correct way to say "no filter".
-function listingComplementUrl(values, selected, extra = {}) {
-  const others = values.filter((v) => v !== selected);
-  // Excluding everything returns 0, and so does an empty `cat=` -- both mean
-  // "no listing to show" rather than "the whole collection".
-  if (!others.length) return null;
-  const params = new URLSearchParams({ cat: others.join(","), ...extra });
-  return `${SITE_ROOT}/unicodetype.php?${params}`;
+// Which works sit on which shelf is derivable from each work: text without
+// the AI flag is on "Unicode Books", text with it on "AI-converted books",
+// and a PDF puts a work on "E-Books" (every AI-converted book has one).
+const SHELVES = [
+  {
+    path: "unicodetype", label: "browse txt",
+    has: (w) => w.text && !w.ai_converted,
+    title: "Browse the site's “Unicode Books” (proofread text), filtered to this (shelves overlap)",
+  },
+  {
+    path: "ai_books", label: "browse AI",
+    has: (w) => w.text && w.ai_converted,
+    title: "Browse the site's “AI-converted books” (unproofread text), filtered to this (shelves overlap)",
+  },
+  {
+    path: "pdf", label: "browse PDF",
+    has: (w) => w.pdf,
+    title: "Browse the site's “E-Books” (PDFs), filtered to this (shelves overlap)",
+  },
+];
+
+// UTF-8 aware, URL-safe, unpadded: the shelf pages' own b64encode.
+function base64Url(str) {
+  let bin = "";
+  for (const b of new TextEncoder().encode(str)) bin += String.fromCharCode(b);
+  return btoa(bin).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
 }
 
-// The listing filtered to one category: exclude the other 32.
-function categoryBrowseUrl(domain) {
-  const domains = (state.data.axes.category || []).map((d) => d.title);
-  return listingComplementUrl(domains, domain);
+// `filters` uses the shelf pages' own keys: cat, sub_cat, author. A
+// sub-category is always sent with its category, because two sub-category
+// names occur under two categories each.
+function browseLinks(filters, works) {
+  const q = base64Url(JSON.stringify(filters));
+  return SHELVES
+    .filter((shelf) => works.some(shelf.has))
+    .map((shelf) => ({
+      label: shelf.label,
+      href: `${SITE_ROOT}/${shelf.path}?q=${q}`,
+      title: shelf.title,
+    }));
 }
 
-// NO sub-category link exists, and the reason is a source defect rather than a
-// choice -- measured 2026-08-20.
-//
-// The `sub_cat` complement does not work, unlike the `cat` one. Excluding a
-// category's other sub-domains returns far fewer works than the listing's own
-// facet claims: उपवेदाः shows आयुर्वेदः (107), गान्धर्ववेदः (1), धनुर्वेदः (3),
-// स्थापत्यवेदः (40), summing to its 151 -- but the complements return 32, 0, 0
-// and 16, summing to 48. The site's own JS hits this too: clicking आयुर्वेदः in
-// the panel lands on 32 while the label still reads 107.
-//
-// It is not a vocabulary mismatch. Passing only the four values the listing
-// itself offers gives the same 48, so it is not caused by our two extra
-// PDF-only sub-domains (अर्थवेदः, चित्रकला) -- though those matter separately:
-// unknown values in `cat` are harmlessly IGNORED, while unknown values in
-// `sub_cat` are not, dropping 107 to 32. That asymmetry is worth remembering
-// before trusting any other facet's complement.
-//
-// So a sub-category browse link would land the reader on roughly a third of the
-// works, with the page's own sidebar contradicting it. Search cannot help
-// either (no `type=sub_cat`). Sub-categories therefore get nothing, and this
-// Atlas's own tree is the accurate view of them.
+function searchLinks(value, type) {
+  const href = siteSearchUrl(value, type);
+  if (!href) return [];
+  const what = type === "author" ? "author" : "category";
+  return [{
+    label: "search txt+pdf",
+    href,
+    title: `Search ebharatisampat.in for this ${what} — texts and PDFs in one list`,
+  }];
+}
 
-// Which links a node gets, in render order.
-//
-//   category      search + browse
-//   sub-category  neither -- the source supports neither route; see above
-//   author        search only. The listing's author facet would need all 3407
-//                 names in the URL (~451 KB) to name one person's complement,
-//                 which the site does not handle at that scale.
-//
+// Every work under a node, ignoring the TXT-only toggle: which shelves hold
+// this value is a fact about the site, not about what is on screen.
+function allWorksOf(entry) {
+  return workIdsOf(entry).map((i) => state.works.get(i)).filter(Boolean);
+}
+
 // The absence buckets get nothing on either axis -- `unknown` author and
 // `uncategorized` sub-domain name a gap in the data, not a value the source
 // can be filtered by.
 function nodeSourceLinks(entry, parent) {
   if (entry.unknown || entry.uncategorized) return [];
+  const works = allWorksOf(entry);
 
   if (state.axis === "author") {
-    const href = siteSearchUrl(entry.title, "author");
-    return href ? [{ label: "search txt+pdf", href, kind: "search" }] : [];
+    return [...browseLinks({ author: [entry.title] }, works),
+            ...searchLinks(entry.title, "author")];
   }
-
-  if (parent) return [];
-
-  const links = [];
-  const search = siteSearchUrl(entry.title, "cat");
-  if (search) links.push({ label: "search txt+pdf", href: search, kind: "search" });
-  const browse = categoryBrowseUrl(entry.title);
-  if (browse) links.push({ label: "browse txt", href: browse, kind: "browse" });
-  return links;
-}
-
-// Tooltips carry the same distinction the About page explains at length. The
-// browse one states the shortfall as the source's, because it is.
-const SOURCE_LINK_TITLES = {
-  search: {
-    category: "Search ebharatisampat.in for this category — the source's complete list",
-    author: "Search ebharatisampat.in for this author — the source's complete list",
-  },
-  browse: {
-    category: "Browse this category on ebharatisampat.in, with the source's own filters "
-      + "(author, sub-category, publisher). Lists Unicode texts only, so compare it "
-      + "against the txt count, not the total — and note the source's listing is "
-      + "missing ~24% of its texts overall. See this Atlas's About page.",
-  },
-};
-
-function sourceLinkTitle(kind) {
-  if (kind === "search") {
-    return SOURCE_LINK_TITLES.search[state.axis === "author" ? "author" : "category"];
+  if (parent) {
+    return browseLinks({ cat: [parent.title], sub_cat: [entry.title] }, works);
   }
-  return SOURCE_LINK_TITLES.browse.category;
+  return [...browseLinks({ cat: [entry.title] }, works),
+          ...searchLinks(entry.title, "cat")];
 }
 
 // A list of works, capped, with an optional secondary grouping applied.
@@ -780,27 +781,21 @@ function secondaryGrouping() {
 
 // The source links a grouping heading carries. A heading names a value on the
 // OTHER axis than the one being browsed -- grouping categories by author names
-// an author, and vice versa -- so it gets that axis's links, not the current
-// one's. `nodeSourceLinks` keys off `state.axis`, which is the wrong way round
-// here, hence the separate builder.
+// an author, and vice versa -- so it gets that value's own links, with shelf
+// presence judged from all of that value's works, not just this group's.
 //
-// Sub-domain headings get nothing: `sub_cat` is only meaningful under its
-// parent domain, and the site has no per-sub-category page to point at.
+// Sub-domain sub-headings (depth 1) get nothing, to keep long grouped lists
+// readable; the sub-category's own node carries its links.
 function groupHeadingLinks(label, grouping) {
   if (!label || label === state.data.unknown_author
       || label === state.data.uncategorized_sub) return [];
-
+  const axis = grouping === "author" ? state.data.axes.author : state.data.axes.category;
+  const entry = (axis || []).find((e) => e.title === label);
+  const works = entry ? allWorksOf(entry) : [];
   if (grouping === "author") {
-    const href = siteSearchUrl(label, "author");
-    return href ? [{ label: "search txt+pdf", href, kind: "search" }] : [];
+    return [...browseLinks({ author: [label] }, works), ...searchLinks(label, "author")];
   }
-
-  const links = [];
-  const search = siteSearchUrl(label, "cat");
-  if (search) links.push({ label: "search txt+pdf", href: search, kind: "search" });
-  const browse = categoryBrowseUrl(label);
-  if (browse) links.push({ label: "browse txt", href: browse, kind: "browse" });
-  return links;
+  return [...browseLinks({ cat: [label] }, works), ...searchLinks(label, "cat")];
 }
 
 // A group heading plus its work count. `depth` 0 is a top-level heading, 1 a
@@ -822,11 +817,7 @@ function groupHeading(label, count, { depth = 0, absent = false, grouping = null
       rel: "noopener",
       class: "badge badgeLink",
       style: "font-weight:normal; margin-left:8px;",
-      // The grouping heading names the other axis, so the tooltip has to
-      // describe that axis rather than the one `sourceLinkTitle` assumes.
-      title: link.kind === "search"
-        ? SOURCE_LINK_TITLES.search[grouping === "author" ? "author" : "category"]
-        : SOURCE_LINK_TITLES.browse.category,
+      title: link.title,
     }, link.label)),
   );
 }
@@ -945,7 +936,7 @@ function renderNodeBlock(entry, parent, { isSearch = false, depth = 0 } = {}) {
       rel: "noopener",
       class: "badge badgeLink",
       style: "font-weight:normal; margin-left:8px;",
-      title: sourceLinkTitle(link.kind),
+      title: link.title,
     }, link.label)),
   );
   block.appendChild(header);
@@ -1119,15 +1110,19 @@ function positionStickyHeaders(host) {
 
 function currentSearchMatcher() {
   const q = foldDiacritics(state.searchQuery);
+  const qEg = foldTitleEg(state.searchQuery);
   // Author as well as title: looking for a text by who wrote it is as ordinary
   // as looking for it by name, and the author axis only helps if you already
   // know the name is an author's. Exact mode compares each field whole, so
   // `kalidasa` exactly-matches his works without also matching every title that
   // happens to contain the string.
   if (state.searchExact) {
+    // Exact compares what the reader can SEE, so the hidden title_eg is left
+    // out: it made exact "karmapradipa" match 120 and 10458 but not 9021.
     return (id) => indexedTitleById(id) === q || indexedAuthorById(id) === q;
   }
-  return (id) => indexedTitleById(id).includes(q) || indexedAuthorById(id).includes(q);
+  return (id) => indexedTitleById(id).includes(q) || indexedAuthorById(id).includes(q)
+    || indexedTitleEgById(id).includes(qEg);
 }
 
 // Every entry on one axis that matches, with the ids the renderer needs. Both
@@ -1216,6 +1211,7 @@ async function loadData() {
 
   state.works = new Map(state.data.works.map((w) => [w.id, w]));
   state.allTitledNodes = collectTitledNodes(state.data);
+  titleEgIndex = null;
   state.translitCache = new Map();
   state.searchIndex = new Map();
   state.searchAuthorIndex = new Map();

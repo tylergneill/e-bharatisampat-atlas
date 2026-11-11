@@ -30,6 +30,8 @@ Run: python -m pipeline.count_sizes
 
 import argparse
 import json
+import os
+from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 
 from pipeline.config import (FULLTEXT_CACHE_DIR, METADATA_PATH, TEXT_LOG_PATH,
@@ -64,19 +66,28 @@ def measure(text: str) -> dict:
     holds extracted text, so this stage reports the two counts that are
     genuinely functions of it and leaves raw_bytes to the fetch journal.
     """
+    # Furniture (site chrome, scan watermarks, page-number and separator lines)
+    # is not text, so both counts are taken after it is gone: `content_bytes`
+    # is then everything kept from the page, and raw -> content -> IAST reads
+    # as two reductions, extraction then transliteration.
+    text = strip_furniture(text)
     deva = devanagari_chars(text)
     content_bytes = len(text.encode("utf-8"))
     return {
         "content_bytes": content_bytes,
-        # This is the figure the Atlas displays, so the site's own page
-        # chrome is stripped before measuring -- see `strip_furniture`. A book
-        # with no Devanagari has nothing to transliterate; some readers serve
-        # roman-script records or whole romanized editions (serials 584, 2367,
-        # 5630), and those keep their content size.
-        "transliterated_bytes": (len(to_iast(strip_furniture(text)).encode("utf-8"))
+        # A book with no Devanagari has nothing to transliterate; some readers
+        # serve roman-script records or whole romanized editions (serials 584,
+        # 2367, 5630), and those keep their content size.
+        "transliterated_bytes": (len(to_iast(text).encode("utf-8"))
                                  if deva else content_bytes),
         "devanagari_chars": deva,
     }
+
+
+def _measure_path(path: str) -> dict:
+    """`measure` of one cached file; a top-level function so worker processes
+    can run it. Each worker builds its own transliterator on first use."""
+    return measure(Path(path).read_text(encoding="utf-8"))
 
 
 def main() -> None:
@@ -85,6 +96,8 @@ def main() -> None:
     parser.add_argument("--log", type=Path, default=TEXT_LOG_PATH)
     parser.add_argument("--metadata", type=Path, default=METADATA_PATH)
     parser.add_argument("--out", type=Path, default=TEXT_SIZES_PATH)
+    parser.add_argument("--workers", type=int, default=os.cpu_count(),
+                        help="processes measuring in parallel (default: one per core)")
     parser.add_argument("--serials", type=str,
                         help="measure only these serials (comma-separated) and "
                              "MERGE them into the existing sizes file, leaving "
@@ -180,6 +193,7 @@ def main() -> None:
     counter = LiveCounter("measuring DEV->IAST", total=measurable)
 
     rows, skipped, missing, empty_fetch = [], 0, 0, 0
+    jobs = []
     for serial in serials:
         state = progress[serial]
         if not state["complete"] and not args.include_partial:
@@ -221,29 +235,34 @@ def main() -> None:
                 empty_fetch += 1
             continue
 
-        # Repainted BEFORE the work, not after: a book that never finishes is
-        # the one whose name is needed, and a line painted on completion is
-        # the one line a hang never reaches.
-        counter.update(name)
+        jobs.append((serial, state, name, path))
 
-        record = by_serial.get(serial, {})
-        carried = journal.get(serial, {})
-        row = {
-            "serial": serial,
-            "id": record.get("id"),
-            "reader": record.get("text"),
-            # `raw_bytes` first so it keeps its place ahead of the counts this
-            # stage derives, matching the order the fetcher writes.
-            **({"raw_bytes": carried["raw_bytes"]}
-               if "raw_bytes" in carried else {}),
-            **measure(path.read_text(encoding="utf-8")),
-            "chunks": state["chunks_written"],
-            **{k: v for k, v in carried.items() if k != "raw_bytes"},
-            "file": name,
-        }
-        if not state["complete"]:
-            row["partial"] = True
-        rows.append(row)
+    # Measuring is a pure function of each file, and transliteration costs
+    # about a second per MB, so the books are measured in parallel, one
+    # process per core. Results come back in submission order, so the rows
+    # are identical to a serial run's.
+    with ProcessPoolExecutor(max_workers=args.workers) as pool:
+        measured = pool.map(_measure_path, [str(job[3]) for job in jobs], chunksize=4)
+        for (serial, state, name, path), sizes in zip(jobs, measured):
+            counter.update(name)
+            record = by_serial.get(serial, {})
+            carried = journal.get(serial, {})
+            row = {
+                "serial": serial,
+                "id": record.get("id"),
+                "reader": record.get("text"),
+                # `raw_bytes` first so it keeps its place ahead of the counts
+                # this stage derives, matching the order the fetcher writes.
+                **({"raw_bytes": carried["raw_bytes"]}
+                   if "raw_bytes" in carried else {}),
+                **sizes,
+                "chunks": state["chunks_written"],
+                **{k: v for k, v in carried.items() if k != "raw_bytes"},
+                "file": name,
+            }
+            if not state["complete"]:
+                row["partial"] = True
+            rows.append(row)
 
     counter.close()
 
