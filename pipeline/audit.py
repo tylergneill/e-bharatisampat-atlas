@@ -70,7 +70,9 @@ import urllib.parse
 from pathlib import Path
 
 from pipeline.config import (CATALOGUE_PATH, DOCS_DIR, EXTRACT_NOTES_PATH,
-                            METADATA_PATH, TEXT_LOG_PATH, TEXT_SIZES_PATH)
+                            METADATA_CACHE_DIR, METADATA_PATH, RAW_CACHE_DIR,
+                            SHELVES_CACHE_DIR, TEXT_LOG_PATH,
+                            TEXT_PREVIOUS_PATH, TEXT_SIZES_PATH)
 from pipeline.upload_dates import interpolate_additions
 
 SITE_ROOT = "https://www.ebharatisampat.in"
@@ -138,7 +140,16 @@ OPTIONAL_STATS = frozenset({
     "unicode_shelf", "unicode_shelf_pdf", "ai_shelf",
     # From `text_sizes.jsonl`; absent on a checkout without measured text.
     "markup_pct", "iast_reduction_pct", "raw_total_gb", "iast_total_gb",
+    # From `data/raw_cache/`; absent on a checkout that never fetched text.
+    "text_pages", "fallback_texts", "fallback_requests", "text_requests", "text_hours",
+    # From `data/shelves_cache/` and `data/metadata_cache/`, likewise.
+    "shelf_requests", "shelf_minutes", "metadata_requests", "metadata_hours",
 })
+
+# Seconds per request over a whole fetch: the 2s politeness floor, its random
+# 0-0.5s jitter, and the slower `get_unicode.php` responses. Observed over the
+# 2026-11-10 refetch; used only to turn a request count into hours.
+SECONDS_PER_REQUEST = 2.4
 
 # Cached output of pipeline/dump_analysis.py -- minutes of git archaeology over
 # a third-party checkout, so not recomputed per audit run.
@@ -327,7 +338,27 @@ def load_manual_verdicts(path=MANUAL_VERDICTS_PATH):
     return verdicts, (data.get("labels") or {})
 
 
-def apply_manual_verdicts(finding, verdicts, labels):
+def load_previous_texts(path=TEXT_PREVIOUS_PATH):
+    """Serial -> when the text the site no longer serves was fetched (ISO).
+
+    Written by the fetcher when an empty extraction would have replaced
+    non-empty text: the old file is moved to `data/fulltext_previous/` and a
+    row recorded here. Measured, not hand-checked -- the text is on disk.
+    """
+    previous = {}
+    if path.exists():
+        for line in path.read_text(encoding="utf-8").splitlines():
+            if line.strip():
+                row = json.loads(line)
+                previous[str(row["serial"])] = row.get("fetched_at")
+    return previous
+
+
+PREVIOUS_KEY = "had_text_previously"
+PREVIOUS_LABEL = "text previously available (at date given), now empty"
+
+
+def apply_manual_verdicts(finding, verdicts, labels, previous=None):
     """Partition an empty-text finding by hand-checked verdict.
 
     Two guards, both hard errors rather than warnings, because a stale
@@ -369,9 +400,24 @@ def apply_manual_verdicts(finding, verdicts, labels):
             f"stale and must go -- or the serial is wrong. A verdict may only "
             f"narrow a measurement, never assert one.")
 
+    # A measured group comes before the hand-checked ones: a work whose text
+    # the site served before and serves no longer. A verdict cannot coexist
+    # with it -- "confirmed to have no text" is the opposite claim.
+    previous = previous or {}
+    clash = sorted(set(previous) & set(verdicts), key=int)
+    if clash:
+        raise SystemExit(
+            f"{MANUAL_VERDICTS_PATH.name} has verdicts for works whose earlier "
+            f"text is on disk ({TEXT_PREVIOUS_PATH.name}): {', '.join(clash)}\n"
+            f"  They had text; the verdict must go.")
+
     groups = collections.defaultdict(list)
     for work in empty:
-        entry = verdicts.get(str(_serial_num(work)))
+        serial = str(_serial_num(work))
+        if serial in previous:
+            groups[PREVIOUS_KEY].append(work)
+            continue
+        entry = verdicts.get(serial)
         groups[entry["verdict"] if entry else None].append(work)
 
     finding["verdicts"] = {
@@ -379,7 +425,8 @@ def apply_manual_verdicts(finding, verdicts, labels):
         # nobody has looked at. It is a real bucket and must keep its own name.
         (key or "unexplained"): works for key, works in groups.items()
     }
-    finding["labels"] = dict(labels)
+    finding["labels"] = {PREVIOUS_KEY: PREVIOUS_LABEL, **labels}
+    finding["previous"] = previous
     finding["explained"] = sum(len(w) for k, w in groups.items() if k)
     return finding
 
@@ -571,7 +618,53 @@ def intro_stats(works):
     stats.update(field_coverage(works))
     stats.update(shelf_stats(works))
     stats.update(size_ratio_stats())
+    stats.update(fetch_cost_stats())
+    stats.update(scrape_cost_stats())
     return stats
+
+
+def scrape_cost_stats(shelves_dir=SHELVES_CACHE_DIR, metadata_dir=METADATA_CACHE_DIR):
+    """What the two metadata scrapes cost, counted from what they left on disk:
+    one file per shelf page in the latest walk, one per item's metadata page."""
+    stats = {}
+    walks = sorted(d for d in shelves_dir.glob("*") if d.is_dir()) if shelves_dir.exists() else []
+    if walks:
+        pages = sum(1 for f in walks[-1].rglob("*") if f.is_file() and f.parent != walks[-1])
+        if pages:
+            stats["shelf_requests"] = round(pages, -1)
+            stats["shelf_minutes"] = round(pages * SECONDS_PER_REQUEST / 60)
+    if metadata_dir.exists():
+        pages = sum(1 for _ in metadata_dir.glob("*.html"))
+        if pages:
+            stats["metadata_requests"] = round(pages, -3)
+            stats["metadata_hours"] = round(pages * SECONDS_PER_REQUEST / 3600)
+    return stats
+
+
+def fetch_cost_stats(raw_dir=RAW_CACHE_DIR):
+    """What a full text fetch costs, counted from what it left on disk.
+
+    One request per reader page, plus one per `get_unicode.php` chunk for the
+    texts whose page was cut short or a placeholder. Every request leaves a
+    file, so the files are the count. Missing cache -> the tags keep their
+    published values (see OPTIONAL_STATS).
+    """
+    if not raw_dir.exists():
+        return {}
+    pages = sum(1 for _ in raw_dir.glob("*.html.gz"))
+    folders = list(raw_dir.glob("*.get_unicode"))
+    chunks = sum(1 for f in folders for _ in f.glob("*.html.gz"))
+    if not pages:
+        return {}
+    requests = pages + chunks
+    return {
+        "text_pages": pages,
+        "fallback_texts": len(folders),
+        "fallback_requests": chunks,
+        # Rounded as the prose says "about": to the hundred, and to the hour.
+        "text_requests": round(requests, -2),
+        "text_hours": round(requests * SECONDS_PER_REQUEST / 3600),
+    }
 
 
 def size_ratio_stats(path=TEXT_SIZES_PATH):
@@ -980,11 +1073,14 @@ def render_empty_texts(finding, empty=frozenset()):
         ["unexplained"] if "unexplained" in groups else [])
 
     preamble = _preamble(
-        "These items are supposed to have text but don't. They are still "
-        "displayed in the Atlas if they contain a PDF. Where a group below "
-        "says what was found, that is a hand check of the individual works, "
-        "not a measurement — the audit can see that an item is empty, but not "
-        "why.")
+        "These items are supposed to have text but don't: the site's reader "
+        "shows them as empty, and its older text endpoint, "
+        "<code>get_unicode.php</code>, has no text for them "
+        "either. They are still displayed in the Atlas if they contain a PDF. "
+        "Items whose text was previously available are those the site served "
+        "on an earlier fetch. The other groups are hand checks of the "
+        "individual works, not measurements — the audit can see that an item "
+        "is empty, but not why.")
 
     items = []
     for key in order:
@@ -992,12 +1088,23 @@ def render_empty_texts(finding, empty=frozenset()):
         if not members:
             continue
         heading = labels.get(key, "not yet checked")
+        previous = finding.get("previous") or {}
+        entries = [_entry_html(w) + (_month_suffix(previous.get(str(_serial_num(w))))
+                                     if key == PREVIOUS_KEY else "")
+                   for w in members]
         items.append(_sub_bullet(html.escape(heading), len(members),
-                                 _findings_list([_entry_html(w)
-                                                 for w in members])))
+                                 _findings_list(entries)))
     return _bullet(description, len(works),
                    preamble + "\n" + _group_ul(items),
                    unit=f"{len(works)} items")
+
+
+def _month_suffix(stamp):
+    """ISO timestamp -> " (August 2026)", or "" when there is none."""
+    if not stamp:
+        return ""
+    day = datetime.date.fromisoformat(stamp[:10])
+    return f" ({day.strftime('%B %Y')})"
 
 
 def render_error_pages(works, empty=frozenset()):
@@ -1037,7 +1144,8 @@ def render_truncated(works, empty=frozenset()):
     preamble = _preamble(
         "The site holds the whole text of these items, but its reader page "
         "stops partway through, mid-paragraph. The Atlas measures the whole "
-        "text, taken from the site's older text endpoint.")
+        "text, taken from the site's older text endpoint, "
+        "<code>get_unicode.php</code>.")
     return _bullet(description, len(works),
                    preamble + "\n" + _findings_list([_entry_html(w, empty) for w in works]),
                    unit=f"{len(works)} items")
@@ -1251,10 +1359,11 @@ def main():
         # partition never changes WHICH works are reported -- only how the
         # page groups them.
         "empty_texts": apply_manual_verdicts(
-            find_empty_texts(works), *load_manual_verdicts()),
+            find_empty_texts(works), *load_manual_verdicts(), load_previous_texts()),
         "error_pages": find_extract_flag(works, "error_pages"),
         "truncated": find_extract_flag(works, "truncated"),
     }
+
 
     print_report(findings["pdf_overshoot"], captured)
 
@@ -1277,6 +1386,8 @@ def main():
     print(f"\n4. items the site's reader cuts short\n", file=sys.stderr)
     print("  no extraction notes on this checkout" if cut is None
           else f"  {len(cut)} items", file=sys.stderr)
+    had = len(findings["empty_texts"].get("verdicts", {}).get(PREVIOUS_KEY, []))
+    print(f"  {had} empty items had text previously", file=sys.stderr)
 
     if args.update_about:
         update_about_html(render_audit_html(findings, load_empty_texts()))

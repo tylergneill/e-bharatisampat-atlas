@@ -316,13 +316,15 @@
           serial number, title, author, category and subcategory, plus publisher, contributor, and language,
           as well as a romanized title, which the Atlas uses for search but does not display.
           Proofreading status is determined by whether a searchable text appears on the "Unicode Books" or the "AI-converted books" shelf.
-          Walking all three takes about 150 requests, or about 5 minutes.
+          Walking all three takes about <span data-stat="shelf_requests">150</span> requests,
+          or about <span data-stat="shelf_minutes">6</span> minutes.
         </p>
         <p>
           The individual metadata pages remain the only source for the remaining fields
           (pages, publication year, printer, editors, commentators, translator)
           and for whether a text is flat or divided into chapters.
-          Fetching every one takes one request per item, about 11,000 requests, or about 7 hours.
+          Fetching every one takes one request per item, about <span data-stat="metadata_requests">11,000</span> requests,
+          or about <span data-stat="metadata_hours">7</span> hours.
         </p>
         <p>
           The vast majority of the Atlas is constructed on the basis of this metadata.
@@ -331,7 +333,12 @@
         <h3 id="calculating-size">Calculating Size Information</h3>
         <p>
           Full texts are scraped only to measure their size; none is published, and PDFs are not fetched.
-          Each text is a single page, so this takes about 5,600 requests, or about 6 hours.
+          Each text is a single page (<span data-stat="text_pages">5,606</span> requests).
+          Where the reader cuts a text short or shows it as empty (<span data-stat="fallback_texts">73</span> texts),
+          the Atlas attempts to fetch the text again in chunks from the site's older text endpoint,
+          <code>get_unicode.php</code> (<span data-stat="fallback_requests">6,023</span> more requests).
+          Altogether this takes about <span data-stat="text_requests">11,600</span> requests,
+          or about <span data-stat="text_hours">8</span> hours.
           Pages are kept as delivered, so text can be re-extracted without refetching.
         </p>
         <p>
@@ -479,10 +486,20 @@
           </details></li>
           <li class="audit-item"><details>
             <summary class="audit-summary"><span><strong>Empty</strong> text items (33 items)</span></summary>
-          <p style="margin-left: 1.6em;">These items are supposed to have text but don't. They are still displayed in the Atlas if they contain a PDF. Where a group below says what was found, that is a hand check of the individual works, not a measurement — the audit can see that an item is empty, but not why.</p>
+          <p style="margin-left: 1.6em;">These items are supposed to have text but don't: the site's reader shows them as empty, and its older text endpoint, <code>get_unicode.php</code>, has no text for them either. They are still displayed in the Atlas if they contain a PDF. Items whose text was previously available are those the site served on an earlier fetch. The other groups are hand checks of the individual works, not measurements — the audit can see that an item is empty, but not why.</p>
           <ul style="margin-left: 1.6em; list-style: none; padding-left: 0;">
             <li class="audit-item"><details>
-<summary class="audit-summary"><span>confirmed to have no text (31)</span></summary>
+<summary class="audit-summary"><span>text previously available (at date given), now empty (5)</span></summary>
+          <ul style="margin-left: 1.6em;">
+            <li>(4633) <a href="https://www.ebharatisampat.in/readSearch.php?id=NjIxMTQxMTk1MDU3NDQ0" target="_blank" rel="noopener"><span class="sa-cap">विज्ञानशतकम्</span></a> (August 2026)</li>
+            <li>(9505) <a href="https://www.ebharatisampat.in/readSearch.php?id=MDExMTIyNDgyNDQ0MjE5" target="_blank" rel="noopener"><span class="sa-cap">दशकुमारचरितम् (पूर्वपीठिका)</span></a> (August 2026)</li>
+            <li>(10417) <a href="https://www.ebharatisampat.in/readSearch.php?id=NDc5OTAzNzU4Mjk5OTk5" target="_blank" rel="noopener"><span class="sa-cap">वेदान्तमार्तण्डः</span></a> (August 2026)</li>
+            <li>(10502) <a href="https://www.ebharatisampat.in/readSearch.php?id=NDQ4NTE5NzM1MjUxODAwMQ%3D%3D" target="_blank" rel="noopener"><span class="sa-cap">विषयवाक्यदीपिका</span></a> (August 2026)</li>
+            <li>(10885) <a href="https://www.ebharatisampat.in/readSearch.php?id=MDc0MzY3ODkwOTE5NDQwMQ%3D%3D" target="_blank" rel="noopener"><span class="sa-cap">चिकित्साचन्द्रोदयः (चतुर्थभागः)</span></a> (August 2026)</li>
+          </ul>
+</details></li>
+            <li class="audit-item"><details>
+<summary class="audit-summary"><span>text never confirmed available (26)</span></summary>
           <ul style="margin-left: 1.6em;">
             <li>(1450) <a href="https://www.ebharatisampat.in/readSearch.php?id=MDA5MTE1MTU1NDkxOTMx" target="_blank" rel="noopener"><span class="sa-cap">सप्तभङ्गीतरङ्गिणी</span></a></li>
             <li>(1471) <a href="https://www.ebharatisampat.in/readSearch.php?id=MjY3MjA2Mjc0MDEyMTQx" target="_blank" rel="noopener"><span class="sa-cap">श्रीलोकप्रकाशः (द्वितीयविभागः)</span></a></li>
@@ -506,19 +523,14 @@
             <li>(3709) <a href="https://www.ebharatisampat.in/readSearch.php?id=ODkxMzQxMzYwMDUwNjUz" target="_blank" rel="noopener"><span class="sa-cap">एकविंशतिस्तोत्रम्</span></a></li>
             <li>(3805) <a href="https://www.ebharatisampat.in/readSearch.php?id=MDE3NTE0MjA3NTYyNTYz" target="_blank" rel="noopener"><span class="sa-cap">श्रावकभूमिः</span></a></li>
             <li>(3940) <a href="https://www.ebharatisampat.in/readSearch.php?id=MDg2MjQxNTkxNTIyODcz" target="_blank" rel="noopener"><span class="sa-cap">सामवेदीया-लोमशीशिक्षा</span></a></li>
-            <li>(4633) <a href="https://www.ebharatisampat.in/readSearch.php?id=NjIxMTQxMTk1MDU3NDQ0" target="_blank" rel="noopener"><span class="sa-cap">विज्ञानशतकम्</span></a></li>
             <li>(5263) <a href="https://www.ebharatisampat.in/readSearch.php?id=Njg5NjY4MzIyODIyNTA1" target="_blank" rel="noopener"><span class="sa-cap">कथासरित्सागरः</span></a></li>
             <li>(8747) <a href="https://www.ebharatisampat.in/readSearch.php?id=NDMyNTY0MjMxOTc2OTM4" target="_blank" rel="noopener"><span class="sa-cap">सिद्धान्तकौमुदी</span></a></li>
-            <li>(9505) <a href="https://www.ebharatisampat.in/readSearch.php?id=MDExMTIyNDgyNDQ0MjE5" target="_blank" rel="noopener"><span class="sa-cap">दशकुमारचरितम् (पूर्वपीठिका)</span></a></li>
             <li>(10236) <a href="https://www.ebharatisampat.in/readSearch.php?id=Mjk1MTM0NzM1NzE2Mjg5" target="_blank" rel="noopener"><span class="sa-cap">नरसिंहनखस्तोत्रं यमकभारतं द्वादशस्तोत्रं कृष्णामृतमहार्णवश्च</span></a></li>
-            <li>(10417) <a href="https://www.ebharatisampat.in/readSearch.php?id=NDc5OTAzNzU4Mjk5OTk5" target="_blank" rel="noopener"><span class="sa-cap">वेदान्तमार्तण्डः</span></a></li>
-            <li>(10502) <a href="https://www.ebharatisampat.in/readSearch.php?id=NDQ4NTE5NzM1MjUxODAwMQ%3D%3D" target="_blank" rel="noopener"><span class="sa-cap">विषयवाक्यदीपिका</span></a></li>
-            <li>(10885) <a href="https://www.ebharatisampat.in/readSearch.php?id=MDc0MzY3ODkwOTE5NDQwMQ%3D%3D" target="_blank" rel="noopener"><span class="sa-cap">चिकित्साचन्द्रोदयः (चतुर्थभागः)</span></a></li>
             <li>(11956) <a href="https://www.ebharatisampat.in/readSearch.php?id=MjM0NzkzNDcwMTM3NzQxMQ%3D%3D" target="_blank" rel="noopener"><span class="sa-cap">तर्कसङ्ग्रहः</span></a></li>
           </ul>
 </details></li>
             <li class="audit-item"><details>
-<summary class="audit-summary"><span>text exists only as a machine-generated PDF (2)</span></summary>
+<summary class="audit-summary"><span>text exists but only as a machine-generated PDF (2)</span></summary>
           <ul style="margin-left: 1.6em;">
             <li>(1162) <a href="https://www.ebharatisampat.in/readSearch.php?id=NDYzNDk2MzM2NzQ1MTEx" target="_blank" rel="noopener"><span class="sa-cap">महाभाष्यम् (मूलामात्रम्)</span></a></li>
             <li>(1452) <a href="https://www.ebharatisampat.in/readSearch.php?id=NDQ3Njk5MzQ1NjgzOTMx" target="_blank" rel="noopener"><span class="sa-cap">सर्वार्थसिद्धिः</span></a></li>
@@ -581,7 +593,7 @@
           </details></li>
           <li class="audit-item"><details>
             <summary class="audit-summary"><span>Text items the site's reader <strong>cuts short</strong> (40 items)</span></summary>
-          <p style="margin-left: 1.6em;">The site holds the whole text of these items, but its reader page stops partway through, mid-paragraph. The Atlas measures the whole text, taken from the site's older text endpoint.</p>
+          <p style="margin-left: 1.6em;">The site holds the whole text of these items, but its reader page stops partway through, mid-paragraph. The Atlas measures the whole text, taken from the site's older text endpoint, <code>get_unicode.php</code>.</p>
           <ul style="margin-left: 1.6em;">
             <li>(122) <a href="https://www.ebharatisampat.in/readSearch.php?id=NDg0NTc1MTQ1MTE3MTE%3D" target="_blank" rel="noopener"><span class="sa-cap">आगमोद्धारक-कृतिसन्दोहः (पञ्चमः भागः)</span></a></li>
             <li>(1104) <a href="https://www.ebharatisampat.in/readSearch.php?id=ODg4MzM2MTU4OTc5NTAx" target="_blank" rel="noopener"><span class="sa-cap">बृहज्जातकम्</span></a></li>

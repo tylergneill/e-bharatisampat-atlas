@@ -56,7 +56,13 @@ TEXT_LOG_PATH = DATA_DIR / "text_fetch_log.jsonl"
 # embedded in the site's stored text, a book served twice, a "Book content is
 # empty." placeholder. One row per extraction, later rows win; the audit reads
 # it, since the extracted text no longer carries the evidence.
+# What the fetcher served, as delivered: one gzipped reader page per book,
+# plus `<serial>.get_unicode/` chunk folders for pages completed elsewhere.
+RAW_CACHE_DIR = DATA_DIR / "raw_cache"
 EXTRACT_NOTES_PATH = DATA_DIR / "text_extract_notes.jsonl"
+# Text the site once served and now does not, moved aside by the fetcher
+# rather than overwritten: one row per move, with when that text was fetched.
+TEXT_PREVIOUS_PATH = DATA_DIR / "text_previous.jsonl"
 # Books still unfinished at the chunk ceiling -- the deep tail, and the
 # candidate list for a manual download. Rewritten on every run.
 TEXT_OPEN_PATH = DATA_DIR / "text_open_books.jsonl"
