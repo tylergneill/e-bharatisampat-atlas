@@ -162,25 +162,9 @@ already covers the first two items below.
 
 ## Books stopped shallow by `dead-run`
 
-- [ ] **~20 books are still stopped shallow, and are the same shape as the
-      three that were recovered.** Every one stopped at `my_id=4` with 1 chunk
-      written, against page counts up to 1017 — front matter, almost certainly,
-      not an ending. They were out of scope on 2026-09-04 only because that
-      pass took the zero-chunk books; these wrote one chunk and so were not in
-      that set.
-
-          491 539 547 576 636 659 1177 1178 1179 1180 1181 1196 1204 1795
-          8569 518 516 1061 6876 10441
-
-      Note 1177-1181 are five consecutive volumes of one work, all stopped at
-      4, and 539 claims 1017 pages but yielded 308 bytes — the scan's barcode
-      slip. Run them the same way:
-
-          SERIALS=491,539,... PATIENCE=15 ./run_ladder.sh 150 300 600 1200
-
-      *Hits the network; needs `make clearance` first.* Re-derive the list
-      before running — it is a measurement, and the count moved 45 -> 57 as
-      more books were walked.
+- [x] **~20 books stopped shallow** (491 539 547 576 636 659 1177-1181 1196
+      1204 1795 8569 518 516 1061 6876 10441). Closed by the 2026-11-10
+      one-page refetch: all 20 now have full text (539: 308 bytes -> 2.8 MB).
 
 ## The audit classifies 2 works nowhere (2026-09-07, narrowed 2026-09-08)
 

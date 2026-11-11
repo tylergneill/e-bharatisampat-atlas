@@ -5,9 +5,10 @@ of the `sagara-sangama` atlases. A `pipeline/` emits `docs/data/tree.json`; a
 single-page frontend in `docs/` browses it.
 
 This repo **publishes no text of its own.** It indexes metadata and structure
-and links out to ebharatisampat.in. It does *cache* text locally -- 4.0 GB
-across 5539 files under the gitignored `data/fulltext_cache/` -- but that is a
-working artifact for measuring byte sizes, and none of it ships to `docs/`.
+and links out to ebharatisampat.in. It does *cache* text locally -- 5606
+reader pages (1.0 GB gzipped) under the gitignored `data/raw_cache/`, and the
+4.2 GB of text extracted from them under `data/fulltext_cache/` -- but that is
+a working artifact for measuring byte sizes, and none of it ships to `docs/`.
 
 **Fulltext ACQUISITION is not in this repo.** It moved to the private
 `rivulet` package; see "Fulltext lives in rivulet" below.
@@ -113,7 +114,7 @@ own, so the whole snapshot track can be deleted rather than reconfigured.
 | `make walk-shelves` | **NETWORKED. NEEDS `rivulet`** (exits 2 without it). The three shelves as raw JSON → `data/shelves_cache/<date>/`, ~150 requests |
 | `make catalogue` | latest shelf walk → `data/catalogue.jsonl`, one row per item per shelf (no network) |
 | `make fetch-metadata` | **NETWORKED. NEEDS `rivulet`** (exits 2 without it). One `readSearch.php` per distinct work → `data/metadata_cache/` |
-| `make fetch-text` | **NETWORKED. NEEDS `rivulet`** (exits 2 without it). readers → `data/fulltext_cache/` + sizes. Pass `MAX_REQUESTS=`; `MAX_CHUNKS=` is a resumable checkpoint |
+| `make fetch-text` | **NETWORKED. NEEDS `rivulet`** (exits 2 without it). One reader page per book → `data/raw_cache/` + extracted text in `data/fulltext_cache/`, ~5600 requests, ~6h. Resumes from `raw_cache`; `ARGS="--reextract"` rebuilds the text offline. Pass `MAX_REQUESTS=` |
 | `make check-source-links` | **NETWORKED. NEEDS `rivulet`** (exits 2 without it, which is *inconclusive*, not failure). Have the shipped source links drifted? |
 | `make count-sizes` | fulltext cache → `data/text_sizes.jsonl` (no network) |
 | `make build` | `metadata.json` → `docs/data/tree.json` — **all 11066 works, no byte sizes** |
@@ -141,26 +142,27 @@ reruns `count-snapshot-sizes`.
 ## What to carry between machines
 
 `data/` is gitignored, so moving work to another machine means copying it by
-hand. Only four things are expensive; everything else rebuilds locally in
+hand. Only three things are expensive; everything else rebuilds locally in
 seconds to minutes.
 
 **Carry these** — they cost network requests to recreate:
 
-    data/metadata_cache/            11066 requests, ~11h
-    data/fulltext_cache/            the whole tier-3 walk
+    data/metadata_cache/            ~11,000 requests, ~7h
     data/metadata_fetch_log.jsonl   id -> serial map; tier-2 resume state
-    data/text_fetch_log.jsonl       chunks_written; tier-3 resume state
+    data/raw_cache/                 ~5600 requests, ~6h; tier-3 resume state
 
-**The two journals are not optional extras.** They are resume state, not logs:
-`text_fetch_log.jsonl` records how many chunks each cached `.txt` holds, and the
-files carry no chunk markers, so without it a resumed run would append from
-chunk 0 onto a file that already has 20. Copy them with the caches they describe.
+**The metadata journal is not an optional extra.** It is resume state, not a
+log; copy it with the cache it describes. `raw_cache/` is its own resume state:
+a book is pending until its page is there, and a page is never overwritten, so
+a fresh refetch means moving the directory aside.
 
 **Leave these** — they are pure functions of the above plus the snapshot:
 
     data/catalogue.jsonl            make catalogue  (from data/shelves_cache/)
     data/snapshot_inventory.jsonl   make parse
     data/snapshot_text_sizes.jsonl  make count-snapshot-sizes  (~1.5 min)
+    data/fulltext_cache/            make fetch-text ARGS="--reextract"  (no network)
+    data/text_extract_notes.jsonl   the same
     data/text_sizes.jsonl           make count-sizes           (no network)
 
 ## Everything networked lives in rivulet (since 2026-09-03)
@@ -189,16 +191,16 @@ over `pipeline/fetch.py`, so every `make` target works as before.
 
 ### Where things land
 
-    data/fulltext_cache/   what the site served
-    data/text_extract/     clean plain text derived from it
+    data/raw_cache/        what the site served, one gzipped page per book
+    data/fulltext_cache/   plain text extracted from it
 
-The same two directories every Atlas uses. **`text_extract/` does not exist
-here yet**: rivulet's `fetch_fulltext` strips markup and cuts page furniture as
-it fetches, so `fulltext_cache/` already holds extracted text rather than raw
-responses. Splitting those apart — a fetcher that keeps what was served, a
-`text_extractor` that derives clean text from it — is the intended next step,
-and it is the same argument `count_sizes` already makes about byte counts:
-changing the rules should not cost 5557 refetches.
+The names differ from the other Atlases (which use `fulltext_cache/` for what
+was served and `text_extract/` for derived text) because this repo's text cache
+predates the split; the roles are the same. Pages are kept as delivered, so a
+change to the extraction rules costs `--reextract` (about 2 minutes), not 5606
+refetches. Each extraction also writes a row to `text_extract_notes.jsonl`
+(placeholders, embedded error pages, doubled and truncated pages), which the
+audit reads.
 
 `pipeline/text_measure.py` holds the pure measuring functions
 (`devanagari_chars`, `strip_furniture`, `to_iast`, `load_progress`) that
@@ -215,8 +217,7 @@ way to obtain a gated corpus without the acquisition code.
    existing `text_sizes.jsonl`, or are recomputed from any cache present, or
    are absent. Nothing is deleted. Every networked target — `make clearance`,
    `fetch-metadata`, `fetch-text`, `check-source-links` — **exits 2**
-   ("machinery not installed"), distinct from 1 = failure, and
-   `run_ladder.sh` propagates that so `|| break` still works. `make audit`
+   ("machinery not installed"), distinct from 1 = failure. `make audit`
    is entirely offline (since 2026-11-09) and runs in full.
 2. **With rivulet** (`pip install -e ../../rivulet`) — cache refreshed, sizes
    full and current.
@@ -253,7 +254,7 @@ exists to prevent. The flag is **omitted entirely** when there is no cache dir
 
 ### `text_sizes.jsonl` must never be deleted
 
-It is the concentrated distillate of a 4.0 GB cache and expensive to
+It is the concentrated distillate of a 4.2 GB cache and expensive to
 reproduce. `count_sizes` **refuses to overwrite a non-empty one with a run that
 measured zero bytes** and exits non-zero. Note the test is measured *bytes*,
 not row count: a cacheless run still emits explicit zero rows for books whose
@@ -266,13 +267,13 @@ Two stages, one per corpus, deliberately symmetrical:
     count_snapshot_sizes.py   the raw_etexts snapshot -> snapshot_text_sizes.jsonl
     count_sizes.py            our fulltext_cache      -> text_sizes.jsonl
 
-rivulet's fetcher also measures each book as it completes it, but that is a
-convenience, not the source of truth. Sizes are a pure function of the cached
-text, so `make count-sizes` rebuilds them offline — which is what keeps a change
-to how bytes are counted from costing 5557 refetches.
+rivulet's fetcher does not measure. Sizes are a pure function of the cached
+text, so `make count-sizes` measures them offline, in parallel — which is what
+keeps a change to how bytes are counted from costing 5606 refetches.
 
-`count_sizes` measures **complete books only**. A book stopped at the chunk
-ceiling has real text on disk but has not ended, and publishing its bytes would
+`count_sizes` measures **complete books only**. A book whose `get_unicode.php`
+completion stopped at `FALLBACK_MAX_CHUNKS` has real text on disk but has not
+ended, and publishing its bytes would
 read as a finished measurement — the failure that once recorded serial 304 as a
 complete 54,498-character book when it was truncated. Use `--include-partial` to
 measure them anyway; they are flagged `partial: true`.
@@ -332,28 +333,6 @@ Consequences for anything that fetches here:
   hourly and the fetcher re-earns it in place and carries on. Only
   `MAX_CLEARANCE_RETRIES` **consecutive** failures to re-earn end the run, and
   that path **exits non-zero**.
-
-## The ladder must not step over an unfinished rung
-
-The fetcher is driven by `./run_ladder.sh`, which walks a list of chunk
-ceilings and **breaks on a non-zero exit**. Climbing gets the shallow books
-done early instead of spending a night on one 900-chunk mahābhāṣya, and the
-journal makes each rung resumable — a book stopped at 150 restarts at 151.
-
-That only works if the exit code distinguishes "this rung is done" from "this
-rung was cut short". Until 2026-08-19 it did not, in two compounding ways:
-
-- `MAX_CLEARANCE_RETRIES` was a budget **per run** rather than per consecutive
-  failure, so the 4th lapse ended a rung even though all three re-earns had
-  **succeeded**. Clearance lapses roughly hourly, so this quietly capped every
-  rung at ~4 hours regardless of its queue.
-- every give-up path was a bare `return`, so the process exited **0** and
-  `|| break` never fired.
-
-Four rungs ran overnight and **431 books were still parked at cursor 50**,
-passed over each time. If open books sit below the current ceiling, the ladder
-skipped them — check with a cursor histogram over incomplete books before
-assuming a rung completed. Do not reintroduce a per-run cap on lapses.
 
 ## Phase 1 is deliberately crude
 

@@ -53,6 +53,12 @@
     "3940":  {"verdict": "no_text",       "checked": "2026-09-06", "by": "tyler", "note": "Footer chrome only; see 2495."},
     "5263":  {"verdict": "no_text",       "checked": "2026-09-04", "by": "tyler"},
     "8747":  {"verdict": "no_text",       "checked": "2026-09-04", "by": "tyler"},
+    "4633":  {"verdict": "no_text",       "checked": "2026-11-11", "by": "tyler",
+              "note": "The rebuilt reader shows only its placeholder, \"Book content is empty.\""},
+    "9505":  {"verdict": "no_text",       "checked": "2026-11-11", "by": "tyler", "note": "Placeholder only; see 4633."},
+    "10417": {"verdict": "no_text",       "checked": "2026-11-11", "by": "tyler", "note": "Placeholder only; see 4633."},
+    "10502": {"verdict": "no_text",       "checked": "2026-11-11", "by": "tyler", "note": "Placeholder only; see 4633."},
+    "10885": {"verdict": "no_text",       "checked": "2026-11-11", "by": "tyler", "note": "Placeholder only; see 4633."},
 
     "1162":  {"verdict": "pdf_only_text", "checked": "2026-09-04", "by": "tyler",
               "note": "978pp. The reader denies text, but the downloadable PDF is machine-generated rather than a scan, so the text exists in some recoverable form -- extraction, or failing that OCR of a clean digital source."},
