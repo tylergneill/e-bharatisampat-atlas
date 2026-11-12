@@ -22,7 +22,7 @@ tried that day: the headers show nginx + `PHPSESSID`, no BitNinja.
 | `readSearch.php?id=` / `readunicode?id=` | the metadata page — the tier-2 route |
 | `readbook3?bookid=X&bookname=Y` | the flat-text reader, **whole book inline** in one page |
 | `read_chapter?bookid=X` | the chaptered reader |
-| `ebook_pdf.php?bookid=X` | the PDF reader, present only when a scan exists |
+| `ebook_pdf?bookid=X` | the PDF reader, present only when a scan exists |
 | `get_unicode.php` (POST `b_id`,`my_id`) | the old AJAX text endpoint — **still live**, byte-identical (serial 2503: 803,232 B, as journalled 2026-08-15) |
 | `filter_books_unicode.php`, `filter_books_ai.php`, `filter_books.php` | POST, JSON: the three listings (below) |
 
@@ -36,6 +36,18 @@ then four rounds of reverse-the-string-and-decode-base64. So links are
 buildable from data we already hold. **`bookname` is optional**: without it
 both readers serve the whole book (2503: 415,733 B against 415,753 with it,
 checked 2026-11-09) and only the browser-tab title goes blank.
+
+**A wrong `bookid` still answers 200, with some other book.** The decode is
+lenient: one mangled character in 2503's id still opened 2503, and a mangled
+PDF id opened Manusmṛti's PDF page with a blank `PDF_URL` (checked
+2026-11-11). So a reader link is verified by *which* book it opens, never by
+its status: the text readers declare `var BOOK_ID = '<serial>'`; the PDF
+reader carries no serial, only `PDF_URL` and a `<title>` that is the work's
+`title_eg`. A placeholder page ("Book not found.", serial 5263) holds 29
+Devanagari characters, and `read_chapter` carries "No chapters found for
+this book." in its page script on every book, so a placeholder cannot be
+recognised by string match on the raw page. rivulet's `check_source_links`
+relies on all of this.
 
 **`readunicode.php`, `readpdf.php` and `readSearch.php` are one endpoint.**
 The first two are redundant aliases; all three return the same metadata page.
@@ -125,6 +137,13 @@ each. Each record carries the **serial** (as `id`), `thumbimg`, `pdfurl`,
 category, sub-category, author, publisher, contributor, language, an English
 `title_eg`, and on the text shelves `correct_ocr`.
 
+`title_eg` is romanized, sometimes English, and messy (typos,
+Shri/Sri/Shree). The Atlas and Sāgarasaṅgama search it but never display it.
+Measured against the 2026-11-06 catalogue: ~30% of values add nothing to the
+Devanagari title, ~25% split compounds into words, ~15% carry spellings the
+search fold cannot reach, and ~510 hold English words. If it misbehaves in
+search, make it optional or drop it.
+
 Full dump 2026-11-06:
 
 | shelf | works | `correct_ocr` |
@@ -176,9 +195,10 @@ are still parsed, but as **inclusion**, so any complement URL built for the old
 bug now shows the opposite of its intent. The JS skips updating the URL once
 it passes 1800 characters.
 
-`search.php` still honours `type` (कालिदासः: author 125, book 2) and links to
-`readSearch?id=`. Its `<select name="type">` is gone, replaced by a hidden
-`<input name="type">`.
+`search.php` still honours `type` (कालिदासः: author 125, book 2; still 125
+on 2026-11-11) and links to `readSearch?id=`. Its `<select name="type">` is
+gone, replaced by a hidden `<input name="type">`, and its count line is now
+`Showing\n1–10of 125 results`: an en dash, no space before "of".
 
 **4. The PDF listing overshoots slightly** — it lists a handful of works whose
 scan does not resolve. Discovered by accident through a *text* discrepancy;

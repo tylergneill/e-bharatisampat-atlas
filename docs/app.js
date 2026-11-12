@@ -593,9 +593,9 @@ function renderWorkLi(work) {
   return li;
 }
 
-// Rebuilt from the id, exactly as pipeline/parse_metadata.py does -- the tree
-// deliberately ships no urls, since every one is derivable. The snapshot build
-// stores the decoded id, so its works need re-encoding.
+// The tree deliberately ships no urls, since every one is derivable from the
+// id or the serial. The snapshot build stores the decoded id, so its works
+// need re-encoding.
 function encodedId(work) {
   if (work.id_encoded) return work.id_encoded;
   // The metadata build already stores the base64 form; the snapshot build

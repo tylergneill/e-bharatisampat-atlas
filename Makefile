@@ -123,20 +123,19 @@ fetch-text:
 count-sizes:
 	python -m pipeline.count_sizes $(ARGS)
 
-# Are the category/author links in docs/app.js still pointing at what we claim?
-# Those URLs are built from our own strings, so a change upstream does not error
-# -- it quietly changes what the reader is shown. This asks the site.
+# Are the links in docs/app.js still pointing at what we claim? They are built
+# from our own data, so a change upstream does not error -- it quietly changes
+# what the reader is shown. This asks the site, for a sample of each kind:
+# text and PDF readers open the right book, the three shelves still read `?q=`
+# and filter by inclusion, and search still honours `type=` and states a total.
 #
-# Four checks: `type=` is still honored (a stopped-being-honored `type` turns
-# every category link into a title search, silently), values still match,
-# search still states a total, and the browse complement has not inverted.
-#
-# *** HITS THE NETWORK, and needs `make clearance` first. *** ~14 requests at
-# one per 2s. Exit 0 fine, 1 drifted, 2 inconclusive (no clearance / the browser
-# check came back) -- 2 is deliberately not a failure, since being unable to ask
-# says nothing about the links. Background in notes/site-structure.md.
+# *** HITS THE NETWORK. *** ~50 requests at one per 2s. No clearance needed
+# since the rebuild (sent if data/clearance.json exists). Exit 0 fine, 1
+# drifted, 2 inconclusive (network error / the browser check came back) -- 2 is
+# deliberately not a failure, since being unable to ask says nothing about the
+# links. What each check means: the docstring of rivulet's check_source_links.
 #   make check-source-links
-#   make check-source-links ARGS="--categories 33 --authors 20"
+#   make check-source-links ARGS="--readers 10 --authors 10"
 check-source-links:
 	python -m pipeline.check_source_links $(ARGS)
 

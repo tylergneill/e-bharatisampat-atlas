@@ -13,10 +13,10 @@ it -- unlike the gitignored `data/` artifacts this stage reads.
 **This file is shaped for the atlas, not as an archive of the page.** Anything
 derivable is dropped, because it ships to every visitor:
 
-- reader URLs and the `SOURCE` url -- rebuilt by `reader_url` / `source_url`
-  from the id, whose shapes were verified across all 11066 records
-- each reader's `bookid` (always the record's own id) and label (constant per
-  format), and `readbook3`'s `pageno` (one constant corpus-wide)
+- reader URLs and the `SOURCE` url. The frontends rebuild reader links from
+  the serial (`readerId` in docs/app.js), and the `SOURCE` url is
+  `source_url(id)`
+- each reader's label (constant per format)
 - `pdf`'s endpoint (always `ebook/index`), so `pdf` is a bare boolean
 - the thumbnail filename -- only its embedded upload date is kept
 - the source cache filename
@@ -56,8 +56,6 @@ BOOKID_RE = re.compile(r"[?&]bookid=([^&\"]+)")
 ID_RE = re.compile(r"[?&]id=([^&\"]+)")
 
 SITE_ROOT = "https://www.ebharatisampat.in"
-# Identical across every `readbook3` link in the corpus; see `reader_url`.
-READBOOK3_PAGENO = "MjI0MjQyNjk5NTk="
 
 # Label -> output key. Keys are snake_case; the site's own wording is preserved
 # in meaning, not in punctuation. Order here is the order fields appear in the
@@ -101,11 +99,9 @@ def parse_rows(page: str) -> list[tuple[str, str]]:
 def parse_reader(value: str) -> str | None:
     """A TEXT/PDF row -> just its endpoint name.
 
-    Everything else in the row is derivable and so is dropped (verified across
-    all 11066 records): the anchor's `bookid` always equals the record's own
-    `id`, the label is constant per format ("Read Unicode" / "Read E-Book"),
-    and `readbook3` links all carry one identical `pageno`. `reader_url` below
-    rebuilds the href from `id` + endpoint.
+    Everything else in the row is derivable and so is dropped: the anchor's
+    `bookid` encodes the serial, and the label is constant per format ("Read
+    Unicode" / "Read E-Book").
 
     The endpoint is what survives because it is the only bit carrying
     information: `read_chapter` means the site paginates the work by chapter
@@ -117,24 +113,6 @@ def parse_reader(value: str) -> str | None:
     if not anchor:
         return None
     return clean(value.split("<a")[0]) or None
-
-
-def reader_url(book_id: str, endpoint: str) -> str:
-    """Rebuild a reader link from the id and endpoint name.
-
-    The inverse of what `parse_reader` drops. Kept here rather than in the
-    frontend so the URL shapes live with the code that verified them.
-    """
-    if endpoint == "readbook3":
-        # One constant `pageno` across all 4891 readbook3 links -- it is the
-        # site's "start at the beginning" token, not a per-book value.
-        return (f"{SITE_ROOT}/readbook3.php?bookid={book_id}"
-                f"&pageno={READBOOK3_PAGENO}")
-    if endpoint == "read_chapter":
-        return f"{SITE_ROOT}/read_chapter.php?bookid={book_id}"
-    if endpoint == "ebook/index":
-        return f"{SITE_ROOT}/ebook/index.php?bookid={book_id}"
-    raise ValueError(f"unknown reader endpoint: {endpoint}")
 
 
 def source_url(book_id: str) -> str:

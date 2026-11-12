@@ -7,11 +7,11 @@ Check items off as they're done, and delete a finished item rather than keeping
 it checked — if it left an insight worth having, promote that to a top-level
 note or a code comment first. See `../CLAUDE.md`.
 
-## BLOCKING: the site was rebuilt (seen 2026-11-06)
+## The proofread axis
 
-- [ ] **Work through `site-v4-migration.md`.** Every text and PDF link the
-  Atlas and Sāgarasaṅgama ship is dead, and the category browse link shows the
-  inverse of its category.
+- [ ] `ai_converted` (the "AI-converted books" shelf) is shown as a badge only.
+  It is not yet a browsing filter or a total. `site-structure.md` "The
+  proofread axis is real but not a census" says how not to report it.
 
 ## Growth axis (axis 2) — not built
 

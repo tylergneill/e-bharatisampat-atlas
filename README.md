@@ -45,8 +45,8 @@ installed") with an explanation rather than half-running:
   `data/fulltext_cache/` plus byte counts. Costs one request *per chunk*, so
   budget by requests rather than books (`MAX_REQUESTS=`, `MAX_CHUNKS=`). The
   cached text is a local working artifact and **never ships to `docs/`**.
-- `make check-source-links` — asks whether the category and author links the
-  frontend builds still point at what we claim. ~15 requests.
+- `make check-source-links` — asks whether the reader, browse and search links
+  the frontend builds still point at what we claim. ~50 requests.
 
 ## building and serving
 
