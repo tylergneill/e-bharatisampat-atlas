@@ -26,11 +26,16 @@ DATA_DIR = REPO_ROOT / "data"
 DOCS_DIR = REPO_ROOT / "docs"
 DOCS_DATA_DIR = DOCS_DIR / "data"
 
-# Snapshot-derived, and named so: both files describe the third-party snapshot,
-# not the site. Phase 2's own acquisition writes alongside them, and the prefix
-# keeps which-came-from-where legible once both exist.
-INVENTORY_PATH = DATA_DIR / "snapshot_inventory.jsonl"
-SNAPSHOT_SIZES_PATH = DATA_DIR / "snapshot_text_sizes.jsonl"
+# Everything derived from the third-party snapshot, in one folder, so it is
+# never mistaken for the site's own data and goes in one piece when the
+# snapshot track is retired.
+SNAPSHOT_DATA_DIR = DATA_DIR / "snapshot"
+INVENTORY_PATH = SNAPSHOT_DATA_DIR / "inventory.jsonl"
+SNAPSHOT_SIZES_PATH = SNAPSHOT_DATA_DIR / "text_sizes.jsonl"
+# `make snapshot-analysis`: the snapshot read at its February 2025 commit,
+# against our scrape. Minutes of git archaeology, so the audit reads the cache.
+CHRONOLOGY_STATS_PATH = SNAPSHOT_DATA_DIR / "chronology_stats.json"
+CHRONOLOGY_ROWS_PATH = SNAPSHOT_DATA_DIR / "chronology_vs_scrape.jsonl"
 
 # Site-derived: the site's own catalogue, against the snapshot's partial copy.
 CATALOGUE_PATH = DATA_DIR / "catalogue.jsonl"
@@ -60,12 +65,14 @@ TEXT_LOG_PATH = DATA_DIR / "text_fetch_log.jsonl"
 # plus `<serial>.get_unicode/` chunk folders for pages completed elsewhere.
 RAW_CACHE_DIR = DATA_DIR / "raw_cache"
 EXTRACT_NOTES_PATH = DATA_DIR / "text_extract_notes.jsonl"
-# Text the site once served and now does not, moved aside by the fetcher
-# rather than overwritten: one row per move, with when that text was fetched.
-TEXT_PREVIOUS_PATH = DATA_DIR / "text_previous.jsonl"
-# Books still unfinished at the chunk ceiling -- the deep tail, and the
-# candidate list for a manual download. Rewritten on every run.
-TEXT_OPEN_PATH = DATA_DIR / "text_open_books.jsonl"
+# The archive: old versions of books whose change between fetches is worth
+# keeping, chosen by an agent after each refresh (see CLAUDE.md). notes.jsonl
+# has one row per archived file, with when that text was fetched and a
+# `reason`: "emptied" (rows without one are also emptied) means the site no
+# longer serves the text; "extended" and "rewritten" mean its current text
+# differs substantially from the archived one.
+ARCHIVE_DIR = DATA_DIR / "archive"
+ARCHIVE_NOTES_PATH = ARCHIVE_DIR / "notes.jsonl"
 # Parsed metadata lands in docs/, not data/: it is tracked and published, being
 # what the frontend reads, unlike the gitignored cache it is derived from.
 METADATA_PATH = DOCS_DATA_DIR / "metadata.json"

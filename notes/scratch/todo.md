@@ -114,7 +114,7 @@ already covers the first two items below.
       the 2287 overlapping works — join on `serial`, since the two sources
       encode the id differently (snapshot decoded, metadata base64).
 - [ ] **Make acquisition rerun `make count-snapshot-sizes`.** Sizes are cached in
-      `data/snapshot_text_sizes.jsonl` and `build-snapshot-tree` trusts them blindly,
+      `data/snapshot/text_sizes.jsonl` and `build-snapshot-tree` trusts them blindly,
       so once the corpus stops being static, whatever updates it owns refreshing
       that cache — or the site silently publishes the previous pull's numbers.
       Narrower than it was: only the snapshot track reads that cache now.

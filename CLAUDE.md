@@ -118,8 +118,8 @@ own, so the whole snapshot track can be deleted rather than reconfigured.
 | `make check-source-links` | **NETWORKED. NEEDS `rivulet`** (exits 2 without it, which is *inconclusive*, not failure). Have the shipped source links drifted? |
 | `make count-sizes` | fulltext cache → `data/text_sizes.jsonl` (no network) |
 | `make build` | `metadata.json` → `docs/data/tree.json` — **all 11066 works, no byte sizes** |
-| `make parse` | snapshot → `data/snapshot_inventory.jsonl` (one record per book, no network) |
-| `make count-snapshot-sizes` | snapshot → `data/snapshot_text_sizes.jsonl`, raw/content/IAST bytes per book (~1.5 min) |
+| `make parse` | snapshot → `data/snapshot/inventory.jsonl` (one record per book, no network) |
+| `make count-snapshot-sizes` | snapshot → `data/snapshot/text_sizes.jsonl`, raw/content/IAST bytes per book (~1.5 min) |
 | `make snapshot-tree` | inventory + sizes → `docs/data/snapshot_tree.json` — **2287 books, with sizes** |
 | `make changelog` | `metadata.json` addition dates → `docs/data/changelog.json` (needs `parse-metadata`) |
 | `make serve` | serve `docs/` on :8002 |
@@ -142,14 +142,57 @@ reruns `count-snapshot-sizes`.
 ## What to carry between machines
 
 `data/` is gitignored, so moving work to another machine means copying it by
-hand. Only three things are expensive; everything else rebuilds locally in
+hand. Only four things are expensive; everything else rebuilds locally in
 seconds to minutes.
 
-**Carry these** — they cost network requests to recreate:
+**Carry these** — they cost network requests to recreate, or cannot be
+recreated at all:
 
     data/metadata_cache/            ~11,000 requests, ~7h
     data/metadata_fetch_log.jsonl   id -> serial map; tier-2 resume state
     data/raw_cache/                 ~5600 requests, ~6h; tier-3 resume state
+    data/archive/                   IRREPLACEABLE: old versions the site no
+                                    longer serves in that form, with
+                                    notes.jsonl saying why each is kept
+
+**`archive/` is the one cache of old text.** The audit reads only its
+"emptied" rows.
+
+### Refreshing the text, and what gets archived
+
+A refresh is a fresh fetch, not a sync, since EBS has no versioning to sync
+on (see "Before scraping anything"). The comparison afterwards is **an agent
+step, not a pipeline step**: judging which differences matter is the job.
+
+1. **Move the current data aside**: `raw_cache/`, `fulltext_cache/`,
+   `text_fetch_log.jsonl`, `text_extract_notes.jsonl`, `text_sizes.jsonl` into
+   `data/previous-<date>/`. Then `make fetch-text`. Nothing is skipped, since
+   the cache it resumes from is now empty.
+2. **Compare before and after, book by book**, on Devanagari letters only, so
+   line breaks, furniture and markup (which change with the extraction) do not
+   count. Size alone misleads: doubled pages halve a book, and a few percent
+   either way is usually extraction.
+3. **Archive the old version where the change is interesting**: copy it into
+   `data/archive/` and add a row to `archive/notes.jsonl`: `serial`, `file`, `fetched_at` (of the old text),
+   `moved_at`, `restored_from` (the aside folder), and a `reason`:
+   - `emptied`: the site no longer serves text for it
+   - `extended`: the old text survives in the new, which is substantially longer
+   - `rewritten`: much of the old text is gone from the new
+
+   Keep the raw page too where the aside folder has one. If a book is already
+   archived, add the new version beside it, named with ` @<fetched date>`;
+   never overwrite. (rivulet's fetcher still has its own move-aside for a book
+   that comes back empty, into `data/fulltext_previous/` and
+   `text_previous.jsonl`. A fresh fetch into an empty cache never triggers it,
+   but if those ever appear, fold them into the archive.)
+4. **Delete the aside folder** once the comparison is done.
+5. **Sync `data/` to the backup drive**, current data and archive together.
+
+The first refresh (2026-11-10, after the site rebuild) kept 99 books from
+the Aug–Sep 2026 fetch: 5 emptied, 55 extended and 39 rewritten, judged
+by 24-letter windows (rewritten: under 85% of the old windows found in the
+new; extended: 20% or more longer, with the old text kept). That fetch
+predates `raw_cache/`, so only its text exists.
 
 **The metadata journal is not an optional extra.** It is resume state, not a
 log; copy it with the cache it describes. `raw_cache/` is its own resume state:
@@ -159,8 +202,8 @@ a fresh refetch means moving the directory aside.
 **Leave these** — they are pure functions of the above plus the snapshot:
 
     data/catalogue.jsonl            make catalogue  (from data/shelves_cache/)
-    data/snapshot_inventory.jsonl   make parse
-    data/snapshot_text_sizes.jsonl  make count-snapshot-sizes  (~1.5 min)
+    data/snapshot/                  make parse, count-snapshot-sizes (~1.5 min),
+                                    snapshot-analysis -- all snapshot-derived
     data/fulltext_cache/            make fetch-text ARGS="--reextract"  (no network)
     data/text_extract_notes.jsonl   the same
     data/text_sizes.jsonl           make count-sizes           (no network)
@@ -264,7 +307,7 @@ fetch legitimately returned nothing, so a row count would not catch it.
 
 Two stages, one per corpus, deliberately symmetrical:
 
-    count_snapshot_sizes.py   the raw_etexts snapshot -> snapshot_text_sizes.jsonl
+    count_snapshot_sizes.py   the raw_etexts snapshot -> snapshot/text_sizes.jsonl
     count_sizes.py            our fulltext_cache      -> text_sizes.jsonl
 
 rivulet's fetcher does not measure. Sizes are a pure function of the cached

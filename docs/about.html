@@ -37,7 +37,7 @@
   </header>
 
   <main class="mainpane" style="height: calc(100% - 48px); display:flex; justify-content:center;">
-    <section class="content" style="width:100%; max-width:900px;">
+    <section class="content" style="width:100%; max-width:900px; align-self:flex-start;">
       <div class="block">
         <h2 id="about" style="margin-top:0;">About</h2>
         <p>
@@ -373,6 +373,10 @@
           neighborhood, and <span data-stat="stamps_early">0</span> run more than a year behind —
           interpolate a synthetic date of likely addition from the serial neighborhood instead.</li>
         </ol>
+        <ul style="list-style: none; padding-left: 0; margin: 0 0 14px;">
+          <li class="audit-item"><details>
+            <summary class="audit-summary"><span>Do file updates correspond to late timestamps?</span></summary>
+          <div style="margin: 8px 0 0 1.6em;">
         <p>
           One natural reading of a late timestamp is that the item was <em>changed</em> then — that it is,
           in effect, a last-updated date. This is worth testing, because if true, we would have another time axis to work with.
@@ -380,17 +384,17 @@
         <p>
           There is exactly one way to test it from outside: a partial fulltext dump by Vishvas Vasuki, posted at
           <a href="https://github.com/sanskrit/raw_etexts/tree/master/mixed/ebhAratI-sampat" target="_blank">sanskrit/raw_etexts</a>
-          and frozen at <strong>February 2025</strong> (later commits are not consequential), holding <span data-stat="dump_files">2,737</span> texts
-          (<span data-stat="dump_coverage_pct">24.4</span>% of the catalogue). It lets the same books be read
+          and frozen at <strong>February 2025</strong> (later commits are not consequential), holding <span data-stat="snapshot_files">2,737</span> texts
+          (<span data-stat="snapshot_coverage_pct">24.4</span>% of the catalogue). It lets the same books be read
           years apart.
         </p>
         <p>
           <strong>The hypothetical last-updated interpretation does not survive scrutiny.</strong>
-          Of the <span data-stat="post_dump_stamped">3,318</span> items stamped after the 2025 dump was taken,
-          <span data-stat="post_dump_new">3,276</span> (<span data-stat="post_dump_new_pct">98.7</span>%)
+          Of the <span data-stat="post_snapshot_stamped">3,318</span> items stamped after the 2025 dump was taken,
+          <span data-stat="post_snapshot_new">3,276</span> (<span data-stat="post_snapshot_new_pct">98.7</span>%)
           were simply not in it — new acquisitions, as a date-added reading predicts. Only
-          <span data-stat="post_dump_reuploads">42</span> were present in 2025 and later restamped, and across
-          <span data-stat="dump_compared">2,626</span> books present in both dumps, those restamped few are
+          <span data-stat="post_snapshot_reuploads">42</span> were present in 2025 and later restamped, and across
+          <span data-stat="snapshot_compared">2,626</span> books present in both dumps, those restamped few are
           indistinguishable from the rest: <span data-stat="reup_within2">66.7</span>% within ±2% of their 2025
           length, against <span data-stat="unch_within2">70.4</span>% of books whose timestamp never moved.
           Manual inspection suggests the only visible discrepancies
@@ -408,6 +412,9 @@
           (2718) grew from 291 chapters to 383, while its timestamp stayed at December 2021.
           So timestamps cannot tell us when a text last changed, in either direction.
         </p>
+          </div>
+          </details></li>
+        </ul>
         <p>
           In the Atlas, items are presented confidently with timestamps,
           and synthetically derived timestamps are marked as such with an asterisk and a tooltip explaining the estimate.

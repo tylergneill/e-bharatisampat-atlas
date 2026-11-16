@@ -4,7 +4,7 @@ The site-derived twin of `count_snapshot_sizes.py`, which does the same job for
 the third-party snapshot. Both measure a book three ways and write one record
 per book; they differ only in where the text comes from:
 
-    count_snapshot_sizes.py   raw_etexts snapshot  -> snapshot_text_sizes.jsonl
+    count_snapshot_sizes.py   raw_etexts snapshot  -> snapshot/text_sizes.jsonl
     count_sizes.py            our fulltext_cache   -> text_sizes.jsonl
 
 **Why this exists separately from the fetcher.** `fetch_text.py` measures each

@@ -1,6 +1,6 @@
 .PHONY: serve-fulltext parse count-snapshot-sizes \
         clearance walk-shelves catalogue fetch-metadata parse-metadata fetch-text count-sizes \
-        check-source-links audit audit-update-about dump-analysis \
+        check-source-links audit audit-update-about snapshot-analysis \
         build snapshot-tree changelog serve serve-snapshot \
         free-server-port get-server-ip-address
 
@@ -12,12 +12,12 @@
 # defects. Everything here goes away once group 2 supplies the same fields
 # independently -- see notes/todo.md.
 
-# Snapshot -> data/snapshot_inventory.jsonl (one record per book, no network).
+# Snapshot -> data/snapshot/inventory.jsonl (one record per book, no network).
 # Override the snapshot location with EBS_SNAPSHOT=/path or SNAPSHOT=/path.
 parse:
 	python -m pipeline.parse_snapshot $(if $(SNAPSHOT),--snapshot $(SNAPSHOT)) --report
 
-# Snapshot bodies -> data/snapshot_text_sizes.jsonl, in raw/content/IAST bytes.
+# Snapshot bodies -> data/snapshot/text_sizes.jsonl, in raw/content/IAST bytes.
 # Reads ~1.6G of source text; ~1.5 min on 8 cores. Sizes are a pure function of
 # the snapshot, so this only needs rerunning when the snapshot changes.
 # Override worker count with e.g. `make count-snapshot-sizes WORKERS=4`.
@@ -153,13 +153,14 @@ check-source-links:
 audit:
 	python -m pipeline.audit $(ARGS)
 
-# Tests the chronology argument against Vishvas Vasuki's 2025 fulltext dump:
-# does a moved upload timestamp mean a revised text? (It does not -- it marks a
-# new acquisition.) Reads the raw_etexts checkout AT its Feb-2025 commit, so it
-# needs that checkout present; no network. Minutes of git archaeology, so the
-# result is cached in data/dump_stats.json and `audit` just reads it.
-dump-analysis:
-	python -m pipeline.dump_analysis
+# Tests the chronology argument against the snapshot (Vishvas Vasuki's 2025
+# fulltext dump): does a moved upload timestamp mean a revised text? (It does
+# not -- it marks a new acquisition.) Reads the raw_etexts checkout AT its
+# Feb-2025 commit, so it needs that checkout present; no network. Minutes of git
+# archaeology, so the result is cached in data/snapshot/chronology_stats.json
+# and `audit` just reads it.
+snapshot-analysis:
+	python -m pipeline.snapshot_analysis
 
 audit-update-about:
 	python -m pipeline.audit --update-about $(ARGS)
