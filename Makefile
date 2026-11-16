@@ -90,8 +90,8 @@ fetch-metadata:
 parse-metadata:
 	python -m pipeline.parse_metadata $(ARGS)
 
-# One reader fetch per text-bearing work -> data/fulltext_cache/ (the text) and
-# data/text_sizes.jsonl (three byte counts per serial).
+# One reader fetch per text-bearing work -> data/raw_cache/ (the page) and
+# data/fulltext_cache/ (its text). Does not measure: run `make count-sizes`.
 #
 # *** THIS HITS THE NETWORK, and needs `make clearance` first. ***
 # One request per book since the site rebuild (the whole book is one page);
@@ -100,7 +100,7 @@ parse-metadata:
 #   make fetch-text MAX_REQUESTS=0                      # plan only, fetches nothing
 #   make fetch-text MAX_REQUESTS=500                    # a bounded run
 #   make fetch-text                                     # everything not yet refetched
-#   make fetch-text ARGS="--reextract"                  # raw_cache -> text + sizes, offline
+#   make fetch-text ARGS="--reextract"                  # raw_cache -> text, offline
 #
 # A book whose raw page is already in data/raw_cache/ is never fetched again.
 # For a fresh full refetch, move data/raw_cache/ aside first. A page the site
@@ -115,10 +115,10 @@ fetch-text:
 	  $(ARGS)
 
 # The fulltext cache -> data/text_sizes.jsonl. No network, no snapshot.
-# The site-derived twin of `count-snapshot-sizes`. The fetcher already measures
-# each book as it finishes, but sizes are a pure function of the cached text, so
-# this rebuilds them without refetching -- which is what makes text_sizes.jsonl
-# cheap to recompute and unnecessary to carry between machines.
+# The site-derived twin of `count-snapshot-sizes`, and the only place sizes are
+# measured: the fetcher does not. Sizes are a pure function of the cached text,
+# which is what makes text_sizes.jsonl cheap to recompute and unnecessary to
+# carry between machines.
 #   make count-sizes
 count-sizes:
 	python -m pipeline.count_sizes $(ARGS)

@@ -42,9 +42,10 @@ installed") with an explanation rather than half-running:
   `data/metadata_cache/`. ~11k requests, so ~6h at one per 2s. Ctrl-C stops
   cleanly and a rerun resumes; nothing is fetched twice.
 - `make fetch-text` — one reader fetch per text-bearing work →
-  `data/fulltext_cache/` plus byte counts. Costs one request *per chunk*, so
-  budget by requests rather than books (`MAX_REQUESTS=`, `MAX_CHUNKS=`). The
-  cached text is a local working artifact and **never ships to `docs/`**.
+  the raw page in `data/raw_cache/` and its text in `data/fulltext_cache/`.
+  One request per book (the whole book is one page); bound a run with
+  `MAX_REQUESTS=`. It does not measure; `make count-sizes` does. The cached
+  text is a local working artifact and **never ships to `docs/`**.
 - `make check-source-links` — asks whether the reader, browse and search links
   the frontend builds still point at what we claim. ~50 requests.
 
@@ -59,8 +60,8 @@ atlas builds normally:
   per work. Safe against a partial fetch, and prints field coverage, which is
   the tripwire for the site changing its markup.
 - `make count-sizes` — the fulltext cache → `data/text_sizes.jsonl`, in
-  raw/content/IAST bytes. The fetcher already measures each book as it
-  finishes; this rebuilds without refetching.
+  raw/content/IAST bytes. The only place sizes are measured, so a change to
+  how bytes are counted costs a rerun of this, never a refetch.
 - `make build` — `metadata.json` → `docs/data/tree.json`
 - `make changelog` — each work's addition date, decoded from the thumbnail
   filename's epoch → `docs/data/changelog.json`, bucketed by month. Needs
