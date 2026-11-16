@@ -19,9 +19,8 @@ Exit codes, so a `make` target can be told apart from a failure:
     2   the machinery is not installed
 
 2 is not an error to be fixed on this machine. It means "this checkout cannot
-fetch fulltext, and that is a supported configuration" -- which is what keeps
-`run_ladder.sh`'s `|| break` meaningful: a missing package stops the ladder
-just as a cut-short rung does, and neither is confused with success.
+fetch fulltext, and that is a supported configuration" -- distinct from a run
+that was cut short, and neither is confused with success.
 """
 
 import sys

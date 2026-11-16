@@ -1,4 +1,4 @@
-"""Stage 2a: snapshot bodies -> data/snapshot_text_sizes.jsonl.
+"""Stage 2a: snapshot bodies -> data/snapshot/text_sizes.jsonl.
 
 Measures each book three ways -- raw bytes, cleaned content bytes, and the
 byte length of that content transliterated DEV->IAST. All three are pure

@@ -164,6 +164,10 @@ def work_from_metadata(record: dict, sizes: dict[str, dict],
         if record.get(key):
             work[key] = record[key]
     if record["id"] not in empty:
+        # On the site's "AI-converted books" shelf: the text is unproofread.
+        # Rides with the text, so a suppressed (empty) text drops it too.
+        if record.get("ai_converted") and work["text"]:
+            work["ai_converted"] = True
         if measured := sizes.get(record["id"]):
             work["sizes"] = measured
         # Whether a plain-text file for this work exists on THIS machine.

@@ -1,6 +1,6 @@
 .PHONY: serve-fulltext parse count-snapshot-sizes \
-        clearance catalogue fetch-metadata parse-metadata fetch-text count-sizes \
-        check-source-links audit audit-update-about dump-analysis \
+        clearance walk-shelves catalogue fetch-metadata parse-metadata fetch-text count-sizes \
+        check-source-links audit audit-update-about snapshot-analysis \
         build snapshot-tree changelog serve serve-snapshot \
         free-server-port get-server-ip-address
 
@@ -12,12 +12,12 @@
 # defects. Everything here goes away once group 2 supplies the same fields
 # independently -- see notes/todo.md.
 
-# Snapshot -> data/snapshot_inventory.jsonl (one record per book, no network).
+# Snapshot -> data/snapshot/inventory.jsonl (one record per book, no network).
 # Override the snapshot location with EBS_SNAPSHOT=/path or SNAPSHOT=/path.
 parse:
 	python -m pipeline.parse_snapshot $(if $(SNAPSHOT),--snapshot $(SNAPSHOT)) --report
 
-# Snapshot bodies -> data/snapshot_text_sizes.jsonl, in raw/content/IAST bytes.
+# Snapshot bodies -> data/snapshot/text_sizes.jsonl, in raw/content/IAST bytes.
 # Reads ~1.6G of source text; ~1.5 min on 8 cores. Sizes are a pure function of
 # the snapshot, so this only needs rerunning when the snapshot changes.
 # Override worker count with e.g. `make count-snapshot-sizes WORKERS=4`.
@@ -31,19 +31,28 @@ count-snapshot-sizes:
 # distinct work. Fetched bytes land in a gitignored cache holding RAW responses,
 # so re-deriving a field never needs the network twice.
 #
-#   catalogue --------> data/catalogue.jsonl      11066 distinct works
+#   walk-shelves -----> data/shelves_cache/<date>/   raw JSON, three shelves
+#   catalogue --------> data/catalogue.jsonl      one row per item per shelf
 #   fetch-metadata ---> data/metadata_cache/*.html   raw, one file per work
 #   parse-metadata ---> docs/data/metadata.json   serial, sub-cat, language, ...
 #
 # Fetching here was an explicit decision, not an assumption; keep the rate
 # polite.
 
-# Saved listing HTML -> data/catalogue.jsonl, the site's own catalogue of all
-# 11066 distinct works against the snapshot's 2287. Does NO fetching: point
-# LISTINGS at a directory of pages saved by hand (URLs in the module docstring).
-#   make catalogue LISTINGS=/path/to/saved/html
+# The three shelves (E-Books, Unicode Books, AI-converted books) -> raw JSON
+# pages under data/shelves_cache/<date>/, plus a manifest when complete.
+# *** THIS HITS THE NETWORK. *** ~150 requests, 5–15 min. NEEDS `rivulet`
+# (exits 2 without it). Rerun the same day to resume an interrupted walk.
+#   make walk-shelves
+walk-shelves:
+	python -m pipeline.walk_shelves $(ARGS)
+
+# The latest complete shelf walk -> data/catalogue.jsonl, one row per item per
+# shelf, with serial and base64 id. No network.
+#   make catalogue
+#   make catalogue ARGS="--walk data/shelves_cache/2026-11-06"
 catalogue:
-	python -m pipeline.parse_listings --listings $(LISTINGS)
+	python -m pipeline.parse_listings $(ARGS)
 
 # Establish session credentials for the networked targets -> data/clearance.json.
 #
@@ -81,53 +90,52 @@ fetch-metadata:
 parse-metadata:
 	python -m pipeline.parse_metadata $(ARGS)
 
-# One reader fetch per text-bearing work -> data/fulltext_cache/ (the text) and
-# data/text_sizes.jsonl (three byte counts per serial).
+# One reader fetch per text-bearing work -> data/raw_cache/ (the page) and
+# data/fulltext_cache/ (its text). Does not measure: run `make count-sizes`.
 #
 # *** THIS HITS THE NETWORK, and needs `make clearance` first. ***
-# A readbook3 book costs one request PER CHUNK,
-# so budget by REQUESTS, not books. Nothing is ever fetched twice: a book
-# stopped partway resumes at its next chunk, so CHUNKS=n is a checkpoint, not a
-# cap on what you can eventually get.
+# One request per book since the site rebuild (the whole book is one page);
+# the raw page is kept gzipped in data/raw_cache/.
 #
 #   make fetch-text MAX_REQUESTS=0                      # plan only, fetches nothing
 #   make fetch-text MAX_REQUESTS=500                    # a bounded run
-#   make fetch-text MAX_REQUESTS=2000 MAX_CHUNKS=20     # the ~83% cheaply
-#   make fetch-text MAX_CHUNKS=100                      # continue the tail
-#   make fetch-text                                     # everything, no ceiling
+#   make fetch-text                                     # everything not yet refetched
+#   make fetch-text ARGS="--reextract"                  # raw_cache -> text, offline
+#
+# A book whose raw page is already in data/raw_cache/ is never fetched again.
+# For a fresh full refetch, move data/raw_cache/ aside first. A page the site
+# truncates is completed in the same run from the old get_unicode.php endpoint.
 #   make fetch-text MAX_REQUESTS=50 DELAY=3 ARGS="--reader read_chapter"
 #
 # Ctrl-C stops cleanly (exit 0) and a rerun resumes.
 fetch-text:
 	python -m pipeline.fulltext \
 	  $(if $(MAX_REQUESTS),--max-requests $(MAX_REQUESTS)) \
-	  $(if $(MAX_CHUNKS),--max-chunks $(MAX_CHUNKS)) \
 	  $(if $(DELAY),--delay $(DELAY)) \
 	  $(ARGS)
 
 # The fulltext cache -> data/text_sizes.jsonl. No network, no snapshot.
-# The site-derived twin of `count-snapshot-sizes`. The fetcher already measures
-# each book as it finishes, but sizes are a pure function of the cached text, so
-# this rebuilds them without refetching -- which is what makes text_sizes.jsonl
-# cheap to recompute and unnecessary to carry between machines.
+# The site-derived twin of `count-snapshot-sizes`, and the only place sizes are
+# measured: the fetcher does not. Sizes are a pure function of the cached text,
+# which is what makes text_sizes.jsonl cheap to recompute and unnecessary to
+# carry between machines.
 #   make count-sizes
 count-sizes:
 	python -m pipeline.count_sizes $(ARGS)
 
-# Are the category/author links in docs/app.js still pointing at what we claim?
-# Those URLs are built from our own strings, so a change upstream does not error
-# -- it quietly changes what the reader is shown. This asks the site.
+# Are the links in docs/app.js still pointing at what we claim? They are built
+# from our own data, so a change upstream does not error -- it quietly changes
+# what the reader is shown. This asks the site, for a sample of each kind:
+# text and PDF readers open the right book, the three shelves still read `?q=`
+# and filter by inclusion, and search still honours `type=` and states a total.
 #
-# Four checks: `type=` is still honored (a stopped-being-honored `type` turns
-# every category link into a title search, silently), values still match,
-# search still states a total, and the browse complement has not inverted.
-#
-# *** HITS THE NETWORK, and needs `make clearance` first. *** ~14 requests at
-# one per 2s. Exit 0 fine, 1 drifted, 2 inconclusive (no clearance / the browser
-# check came back) -- 2 is deliberately not a failure, since being unable to ask
-# says nothing about the links. Background in notes/site-structure.md.
+# *** HITS THE NETWORK. *** ~50 requests at one per 2s. No clearance needed
+# since the rebuild (sent if data/clearance.json exists). Exit 0 fine, 1
+# drifted, 2 inconclusive (network error / the browser check came back) -- 2 is
+# deliberately not a failure, since being unable to ask says nothing about the
+# links. What each check means: the docstring of rivulet's check_source_links.
 #   make check-source-links
-#   make check-source-links ARGS="--categories 33 --authors 20"
+#   make check-source-links ARGS="--readers 10 --authors 10"
 check-source-links:
 	python -m pipeline.check_source_links $(ARGS)
 
@@ -137,34 +145,22 @@ check-source-links:
 # docs/about.html between the AUDIT markers. A finding is for a human to look
 # at, never an auto-correction.
 #
-# Offline checks read docs/data/metadata.json and always run. The live walk runs
-# too, BY DEFAULT: it needs `make clearance` first and costs ~33 requests at one
-# per 2s (~2 min). Without clearance it exits 2 = INCONCLUSIVE, not 1 -- being
-# unable to ask the site says nothing about the collection, same convention as
-# check-source-links.
-#
-# Every number is re-derived by the run that publishes it, so a run without the
-# walk reports NO gap: the listing's half of the subtraction lives on the site,
-# and quoting a remembered figure is the exact failure this guards against.
-#
-# Hence one mode selector rather than two knobs. --offline-skip-gap skips the
-# walk AND the gap: with --update-about it leaves the published audit region
-# untouched, since rewriting it gap-less would delete the per-category listing
-# figures nothing offline can reproduce. The intro's data-stat figures still
-# refresh either way -- those are measured from files on disk.
-#   make audit                                    # report, incl. the live walk
-#   make audit ARGS=--offline-skip-gap            # our side only, gap left alone
-#   make audit-update-about                       # ...and publish it
+# No network: reads metadata.json, catalogue.jsonl and the size files, and
+# re-derives every number it publishes. A figure whose input file is missing on
+# this checkout keeps its published value rather than being blanked.
+#   make audit                # report only
+#   make audit-update-about   # ...and publish it
 audit:
 	python -m pipeline.audit $(ARGS)
 
-# Tests the chronology argument against Vishvas Vasuki's 2025 fulltext dump:
-# does a moved upload timestamp mean a revised text? (It does not -- it marks a
-# new acquisition.) Reads the raw_etexts checkout AT its Feb-2025 commit, so it
-# needs that checkout present; no network. Minutes of git archaeology, so the
-# result is cached in data/dump_stats.json and `audit` just reads it.
-dump-analysis:
-	python -m pipeline.dump_analysis
+# Tests the chronology argument against the snapshot (Vishvas Vasuki's 2025
+# fulltext dump): does a moved upload timestamp mean a revised text? (It does
+# not -- it marks a new acquisition.) Reads the raw_etexts checkout AT its
+# Feb-2025 commit, so it needs that checkout present; no network. Minutes of git
+# archaeology, so the result is cached in data/snapshot/chronology_stats.json
+# and `audit` just reads it.
+snapshot-analysis:
+	python -m pipeline.snapshot_analysis
 
 audit-update-about:
 	python -m pipeline.audit --update-about $(ARGS)

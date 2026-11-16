@@ -11,7 +11,7 @@ among the 11066 -- but the two sources encode the book id differently (snapshot
 decoded, metadata base64), so `serial` is the stable key if anything ever needs
 to cross them.
 
-Byte figures come from data/snapshot_text_sizes.jsonl, written by
+Byte figures come from data/snapshot/text_sizes.jsonl, written by
 `pipeline.count_snapshot_sizes`. This stage never reads the snapshot itself, so it is
 fast -- and it TRUSTS that cache and cannot tell it is stale; whatever updates
 the snapshot owns rerunning the measurement.
@@ -61,7 +61,7 @@ def load_sizes(path: Path) -> dict[str, dict]:
 
 
 def work_from_snapshot(record: dict, sizes: dict[str, dict]) -> dict:
-    """One snapshot_inventory.jsonl record -> one work, in the shared shape.
+    """One snapshot/inventory.jsonl record -> one work, in the shared shape.
 
     The snapshot has no `pdf` flag and no upload date, and its reader endpoint
     lives inside the source url rather than in a field -- so those are recovered

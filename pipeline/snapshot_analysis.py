@@ -2,10 +2,10 @@
 
 The About page argues that serial number and thumbnail timestamp are both
 proxies for chronology. That argument needs an outside check, and there is
-exactly one available: Vishvas Vasuki's fulltext dump at
+exactly one available: the snapshot, Vishvas Vasuki's fulltext dump at
 `sanskrit/raw_etexts`, which captured a slice of EBS years before we did.
 
-**The dump is a live repo, not a snapshot.** It is effectively frozen at
+**The snapshot checkout is a live repo, not a frozen one.** It is effectively frozen at
 2025-02-28 -- 2737 text files by that month, none added since -- but later
 commits still rewrite files, and 33% of the books our inventory reads have been
 re-scraped upstream since. So this reads the tree AT the February 2025 commit,
@@ -20,8 +20,8 @@ path-joins pair two different books (`kathAsaritsAgaraH.md` at HEAD is serial
 real text on disk but has not ended, and its deficit would read as an upstream
 deletion. `text_fetch_log.jsonl` carries the completeness flag.
 
-Emits `data/dump_stats.json` for `pipeline/audit.py` to publish, and
-`data/dump_vs_scrape.jsonl` with one row per compared book.
+Emits `data/snapshot/chronology_stats.json` for `pipeline/audit.py` to publish,
+and `data/snapshot/chronology_vs_scrape.jsonl` with one row per compared book.
 """
 
 import json
@@ -30,18 +30,18 @@ import subprocess
 import unicodedata
 from pathlib import Path
 
-from pipeline.config import DOCS_DIR, METADATA_PATH, snapshot_root
+from pipeline.config import (CHRONOLOGY_ROWS_PATH, CHRONOLOGY_STATS_PATH,
+                             DATA_DIR, METADATA_PATH, snapshot_root)
 
-# Last commit on or before 2025-02-28, when the dump stopped growing.
+# Last commit on or before 2025-02-28, when the snapshot stopped growing.
 BASE_COMMIT = "6de660bf5110123951f95619a8316c5017bcfd78"
 CUTOFF = "2025-02-28"
 
 DEVA = re.compile(r"[ऀ-ॿ]+")
 SERIAL_RE = re.compile(r'"serial no\." = "Ebharati-(\d+)"')
 
-DATA_DIR = DOCS_DIR.parent / "data"
-STATS_PATH = DATA_DIR / "dump_stats.json"
-ROWS_PATH = DATA_DIR / "dump_vs_scrape.jsonl"
+STATS_PATH = CHRONOLOGY_STATS_PATH
+ROWS_PATH = CHRONOLOGY_ROWS_PATH
 FULLTEXT_DIR = DATA_DIR / "fulltext_cache"
 FETCH_LOG = DATA_DIR / "text_fetch_log.jsonl"
 
@@ -51,7 +51,7 @@ MIN_CHARS = 500
 
 
 def _repo_root():
-    """The dump's git root -- snapshot_root() points inside it."""
+    """The snapshot checkout's git root -- snapshot_root() points inside it."""
     root = snapshot_root()
     for parent in [root, *root.parents]:
         if (parent / ".git").exists():
@@ -123,7 +123,7 @@ def main():
     works = works["works"] if isinstance(works, dict) else works
     uploaded = {w["serial"]: w.get("uploaded") for w in works if w.get("serial")}
 
-    # Q1: does a post-dump stamp mark a new item or a revised one?
+    # Q1: does a post-snapshot stamp mark a new item or a revised one?
     stamped_after = [s for s, d in uploaded.items() if d and d > CUTOFF]
     reuploads = [s for s in stamped_after if s in baseline]
 
@@ -159,18 +159,18 @@ def main():
         return round(sum(0.98 <= r["ratio"] <= 1.02 for r in group) / len(group) * 100, 1)
 
     stats = {
-        "dump_files": n_files,
-        "dump_compared": len(rows),
-        "post_dump_stamped": len(stamped_after),
-        "post_dump_new": len(stamped_after) - len(reuploads),
-        "post_dump_reuploads": len(reuploads),
+        "snapshot_files": n_files,
+        "snapshot_compared": len(rows),
+        "post_snapshot_stamped": len(stamped_after),
+        "post_snapshot_new": len(stamped_after) - len(reuploads),
+        "post_snapshot_reuploads": len(reuploads),
         "reup_within2": within2(moved),
         "unch_within2": within2(still),
     }
     STATS_PATH.write_text(json.dumps(stats, indent=2) + "\n")
 
-    print(f"\n  stamped after {CUTOFF}: {stats['post_dump_stamped']}"
-          f" -- {stats['post_dump_new']} new, {stats['post_dump_reuploads']} re-uploads")
+    print(f"\n  stamped after {CUTOFF}: {stats['post_snapshot_stamped']}"
+          f" -- {stats['post_snapshot_new']} new, {stats['post_snapshot_reuploads']} re-uploads")
     print(f"  compared (complete, both ends): {len(rows)}")
     print(f"    restamped  n={len(moved):5d}  within +-2%: {stats['reup_within2']}%")
     print(f"    unchanged  n={len(still):5d}  within +-2%: {stats['unch_within2']}%")

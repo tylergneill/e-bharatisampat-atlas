@@ -1,4 +1,4 @@
-"""Stage 1: snapshot -> data/snapshot_inventory.jsonl (one record per book, no network).
+"""Stage 1: snapshot -> data/snapshot/inventory.jsonl (one record per book, no network).
 
 Reads the ebhAratI-sampat snapshot's per-book markdown files and extracts their
 TOML-ish frontmatter into normalized records.

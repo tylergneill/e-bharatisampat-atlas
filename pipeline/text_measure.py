@@ -88,26 +88,59 @@ def devanagari_chars(text: str) -> int:
 # bearing lines would also delete legitimate roman-script content -- serial
 # 2367 is the entire Rigveda in romanized transliteration, 1.4 MB with zero
 # Devanagari, and a positive filter reduces it to nothing.
+#
+# Since the site rebuild the fetcher reads only the reader's text container, so
+# this block no longer appears in newly fetched text (0 of the first 1,079
+# refetched books, 2026-11-10). Kept for caches from the old chunk walk.
 FURNITURE_MARKER = "Number Of Visitors"
+
+# Furniture of the SOURCE books, line by line. Measured over the first 1,079
+# books of the 2026-11 refetch, about 0.5% of text bytes all told.
+#
+#   - watermarks the scanned originals carry, OCR'd into the text
+#     ("Jain Education International", "Digitized by Google ____"),
+#   - bare page-number lines ("१", "[२८]", "4"),
+#   - lines of nothing but punctuation and separators ("-", "———", "..").
+#
+# Deliberately conservative. Running heads ("ऋग्वेदः" repeated a thousand
+# times in one book) are left in: by shape they cannot be told from a refrain
+# like "नमः शिवाय", and deleting real verse is the worse error. Footnotes and
+# apparatus are content and stay. Excluding non-Sanskrit material by language
+# is a later, separate change (notes/scratch/todo.md).
+WATERMARK_LINE_RE = re.compile(
+    r"^\s*(?:For Private & Personal Use Only|Jain Education International"
+    r"|www\.jainelibrary\.org|Digitized by Google)\s*_*\s*$",
+    re.I,
+)
+PAGE_NUMBER_LINE_RE = re.compile(r"^[\s\[\(\-–—]*[०-९0-9]{1,4}[\s\]\)\-–—.]*$")
+PUNCTUATION_LINE_RE = re.compile(r"^[\s\-–—_.,:;\"'|।॥+*=~•·]+$")
+
+
+def _is_furniture_line(line: str) -> bool:
+    return bool(line.strip()) and bool(
+        WATERMARK_LINE_RE.match(line)
+        or PAGE_NUMBER_LINE_RE.match(line)
+        or PUNCTUATION_LINE_RE.match(line))
 
 
 def strip_furniture(text: str) -> str:
-    """`text` with the site's trailing page chrome removed.
+    """`text` without the site's trailing page chrome or the source books'
+    line furniture (see WATERMARK_LINE_RE and its neighbours).
 
-    Cuts at the marker only when it appears in the last part of the text, where
-    the chrome lives. A book that happens to quote the phrase mid-body keeps
-    everything, since truncating a text at a coincidental match would lose real
-    content -- the failure this is meant to prevent, in the opposite direction.
+    The chrome is cut at its marker only when it appears in the last part of
+    the text, where the chrome lives. A book that happens to quote the phrase
+    mid-body keeps everything, since truncating a text at a coincidental match
+    would lose real content -- the failure this is meant to prevent, in the
+    opposite direction.
     """
     index = text.rfind(FURNITURE_MARKER)
-    if index == -1:
-        return text
     # The block runs to the end of the response, so anything before the marker
     # is content and anything after is chrome. Only treat it as chrome when
     # what follows is about the right size for it.
-    if len(text) - index > 4000:
-        return text
-    return text[:index].rstrip()
+    if index != -1 and len(text) - index <= 4000:
+        text = text[:index].rstrip()
+    return "\n".join(line for line in text.split("\n")
+                     if not _is_furniture_line(line))
 
 
 def load_progress(path: Path) -> dict[int, dict]:

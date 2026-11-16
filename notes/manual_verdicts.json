@@ -61,8 +61,8 @@
   },
 
   "labels": {
-    "no_text":        "confirmed to have no text",
-    "pdf_only_text":  "text exists only as a machine-generated PDF"
+    "no_text":        "text never confirmed available",
+    "pdf_only_text":  "text exists but only as a machine-generated PDF"
   },
 
   "no_devanagari": {

@@ -7,7 +7,9 @@ Reads three local files, fetches nothing:
 
     docs/data/metadata.json     serial, uploaded, publish_year, text, pdf
     data/text_sizes.jsonl       devanagari_chars for COMPLETED books only
-    data/text_open_books.jsonl  the still-open books, excluded from sizes
+    data/old_logs_and_reports/text_open_books.jsonl
+                                the books still open under the old chunked
+                                reader (Sep 2026), excluded from sizes
 
 Run from the atlas root:
 
@@ -46,7 +48,7 @@ def load():
             r = json.loads(line)
             sizes[r["serial"]] = r
     openb = set()
-    with open(ROOT / "data/text_open_books.jsonl") as fh:
+    with open(ROOT / "data/old_logs_and_reports/text_open_books.jsonl") as fh:
         for line in fh:
             openb.add(json.loads(line).get("serial"))
     return meta, sizes, openb

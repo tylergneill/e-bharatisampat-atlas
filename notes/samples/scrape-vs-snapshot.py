@@ -19,9 +19,9 @@ divergence interpretable: a prefix of 0 means they disagree from the first
 character, which is a boilerplate difference, not an edit.
 
 Reads `data/text_sizes.jsonl` (complete books only -- run `make count-sizes`
-first), joins to the snapshot via `snapshot_inventory.jsonl` (serial ->
+first), joins to the snapshot via `data/snapshot/inventory.jsonl` (serial ->
 book_id -> path), and writes per-book detail to
-`data/snapshot_vs_scrape.jsonl`, sorted by absolute delta.
+`data/snapshot/text_vs_scrape.jsonl`, sorted by absolute delta.
 
 Only books present in BOTH are comparable, and the snapshot covers 21% of the
 catalogue -- expect to lose a quarter of any sample to that.
@@ -88,7 +88,7 @@ def main():
             "and `make count-sizes` first."
         )
     by_serial = {r["serial"]: r
-                 for r in load(REPO / "data/snapshot_inventory.jsonl")
+                 for r in load(REPO / "data/snapshot/inventory.jsonl")
                  if r.get("serial") is not None}
     if not by_serial:
         raise SystemExit(
@@ -155,7 +155,7 @@ def main():
               f"{r['snap_deva']:>10} {delta:>+9} {pct} {r['shared_prefix']:>8}"
               f"{'=' if r['identical'] else ' '}  {r['title'][:28]}")
 
-    out = REPO / "data" / "snapshot_vs_scrape.jsonl"
+    out = REPO / "data" / "snapshot" / "text_vs_scrape.jsonl"
     with out.open("w", encoding="utf-8") as fh:
         for r in sorted(rows, key=lambda r: abs(r["our_deva"] - r["snap_deva"]),
                         reverse=True):

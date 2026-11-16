@@ -13,10 +13,10 @@ it -- unlike the gitignored `data/` artifacts this stage reads.
 **This file is shaped for the atlas, not as an archive of the page.** Anything
 derivable is dropped, because it ships to every visitor:
 
-- reader URLs and the `SOURCE` url -- rebuilt by `reader_url` / `source_url`
-  from the id, whose shapes were verified across all 11066 records
-- each reader's `bookid` (always the record's own id) and label (constant per
-  format), and `readbook3`'s `pageno` (one constant corpus-wide)
+- reader URLs and the `SOURCE` url. The frontends rebuild reader links from
+  the serial (`readerId` in docs/app.js), and the `SOURCE` url is
+  `source_url(id)`
+- each reader's label (constant per format)
 - `pdf`'s endpoint (always `ebook/index`), so `pdf` is a bare boolean
 - the thumbnail filename -- only its embedded upload date is kept
 - the source cache filename
@@ -37,7 +37,7 @@ import re
 import sys
 from pathlib import Path
 
-from pipeline.config import METADATA_CACHE_DIR, METADATA_PATH
+from pipeline.config import CATALOGUE_PATH, METADATA_CACHE_DIR, METADATA_PATH
 from pipeline.upload_dates import decode as decode_upload
 from pipeline.upload_dates import interpolate_additions
 
@@ -56,8 +56,6 @@ BOOKID_RE = re.compile(r"[?&]bookid=([^&\"]+)")
 ID_RE = re.compile(r"[?&]id=([^&\"]+)")
 
 SITE_ROOT = "https://www.ebharatisampat.in"
-# Identical across every `readbook3` link in the corpus; see `reader_url`.
-READBOOK3_PAGENO = "MjI0MjQyNjk5NTk="
 
 # Label -> output key. Keys are snake_case; the site's own wording is preserved
 # in meaning, not in punctuation. Order here is the order fields appear in the
@@ -101,11 +99,9 @@ def parse_rows(page: str) -> list[tuple[str, str]]:
 def parse_reader(value: str) -> str | None:
     """A TEXT/PDF row -> just its endpoint name.
 
-    Everything else in the row is derivable and so is dropped (verified across
-    all 11066 records): the anchor's `bookid` always equals the record's own
-    `id`, the label is constant per format ("Read Unicode" / "Read E-Book"),
-    and `readbook3` links all carry one identical `pageno`. `reader_url` below
-    rebuilds the href from `id` + endpoint.
+    Everything else in the row is derivable and so is dropped: the anchor's
+    `bookid` encodes the serial, and the label is constant per format ("Read
+    Unicode" / "Read E-Book").
 
     The endpoint is what survives because it is the only bit carrying
     information: `read_chapter` means the site paginates the work by chapter
@@ -117,24 +113,6 @@ def parse_reader(value: str) -> str | None:
     if not anchor:
         return None
     return clean(value.split("<a")[0]) or None
-
-
-def reader_url(book_id: str, endpoint: str) -> str:
-    """Rebuild a reader link from the id and endpoint name.
-
-    The inverse of what `parse_reader` drops. Kept here rather than in the
-    frontend so the URL shapes live with the code that verified them.
-    """
-    if endpoint == "readbook3":
-        # One constant `pageno` across all 4891 readbook3 links -- it is the
-        # site's "start at the beginning" token, not a per-book value.
-        return (f"{SITE_ROOT}/readbook3.php?bookid={book_id}"
-                f"&pageno={READBOOK3_PAGENO}")
-    if endpoint == "read_chapter":
-        return f"{SITE_ROOT}/read_chapter.php?bookid={book_id}"
-    if endpoint == "ebook/index":
-        return f"{SITE_ROOT}/ebook/index.php?bookid={book_id}"
-    raise ValueError(f"unknown reader endpoint: {endpoint}")
 
 
 def source_url(book_id: str) -> str:
@@ -203,6 +181,20 @@ def parse_file(path: Path) -> dict:
     return record
 
 
+def clean_title_eg(value: str | None) -> str | None:
+    """The shelf's `title_eg`, or None if it has nothing to add.
+
+    81 values carry entity residue ("Dhammapala&#039s"), and 2 are Devanagari
+    rather than romanized, which the Devanagari title already covers.
+    """
+    if not value:
+        return None
+    value = " ".join(html.unescape(value).split())
+    if not value or re.search("[ऀ-ॿ]", value):
+        return None
+    return value
+
+
 def key_order(record: dict) -> dict:
     """Identity first, then bibliography, then readers -- stable across records."""
     lead = ["id", "serial", "title"]
@@ -215,6 +207,8 @@ def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     parser.add_argument("--cache", type=Path, default=METADATA_CACHE_DIR)
     parser.add_argument("--out", type=Path, default=METADATA_PATH)
+    parser.add_argument("--catalogue", type=Path, default=CATALOGUE_PATH,
+                        help="drop cached works no longer listed (skipped if absent)")
     args = parser.parse_args()
 
     if not args.cache.is_dir():
@@ -239,11 +233,42 @@ def main() -> int:
     field_counts: dict[str, int] = {}
     unknown_labels: dict[str, int] = {}
 
+    # The cache only grows, so a work the site has since removed would stay
+    # here forever. The latest shelf walk says what is still listed; without a
+    # catalogue on disk, keep everything rather than guess.
+    #
+    # The same walk says which texts are unproofread: the site shelves them as
+    # "AI-converted books". That is a shelf fact, not on the metadata page, so
+    # it is joined in here as `ai_converted`.
+    #
+    # And it carries `title_eg`, the site's romanized (sometimes English) title,
+    # which the metadata page does not show. It is ad-hoc ASCII with typos and
+    # mixed spellings (Shri/Sri/Shree), so it is for SEARCH ONLY, never shown.
+    listed, ai_shelf, title_eg = None, set(), {}
+    if args.catalogue.exists():
+        rows = [json.loads(line)
+                for line in args.catalogue.read_text(encoding="utf-8").splitlines()
+                if line.strip()]
+        listed = {row["id"] for row in rows}
+        ai_shelf = {row["id"] for row in rows if row.get("collection") == "ai"}
+        for row in rows:
+            if row["id"] not in title_eg and (eg := clean_title_eg(row.get("title_eg"))):
+                title_eg[row["id"]] = eg
+    delisted = []
+
     records = []
     for path in paths:
-        record = key_order(parse_file(path))
-
+        record = parse_file(path)
         book_id = record.get("id")
+        if book_id in ai_shelf:
+            record["ai_converted"] = True
+        if book_id in title_eg:
+            record["title_eg"] = title_eg[book_id]
+        record = key_order(record)
+
+        if listed is not None and book_id and book_id not in listed:
+            delisted.append(record.get("serial"))
+            continue
         if not book_id:
             no_id += 1
         elif book_id in seen_ids:
@@ -273,7 +298,12 @@ def main() -> int:
 
     print(f"cache:   {args.cache}")
     print(f"out:     {args.out}")
-    print(f"records: {len(paths)}  ({len(seen_ids)} distinct ids)")
+    print(f"records: {len(records)}  ({len(seen_ids)} distinct ids)")
+    if delisted:
+        print(f"dropped: {len(delisted)} cached but no longer on any shelf "
+              f"(serials {sorted(delisted)})")
+    elif listed is None:
+        print(f"note:    no {args.catalogue.name}, so delisted works are kept")
     print(f"added:   {synthetic} synthetic (stamp >1y past its serial neighborhood; "
           f"{early} the same distance behind)")
     if no_id:

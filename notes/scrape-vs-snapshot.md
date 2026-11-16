@@ -7,8 +7,8 @@ one chronology signal EBS gives — mark a *revision* when it runs ahead of seri
 order?
 
 **Answer: extraction, not change; and the timestamp marks an addition, not a
-revision.** Measured 2026-08-21 by `pipeline/dump_analysis.py`
-(`make dump-analysis`). Re-run 2026-08-31 with the walk complete; the
+revision.** Measured 2026-08-21 by `pipeline/snapshot_analysis.py`
+(`make snapshot-analysis`). Re-run 2026-08-31 with the walk complete; the
 conclusion did not move.
 
 ## The three findings

@@ -39,7 +39,7 @@ UNKNOWN_AUTHOR = "unknown"
 # name the absence, the same way UNKNOWN_AUTHOR does on the other axis.
 UNCATEGORIZED_SUB = "uncategorized"
 
-# Byte figures, in the order snapshot_text_sizes.jsonl and the old nested tree used.
+# Byte figures, in the order snapshot/text_sizes.jsonl and the old nested tree used.
 SIZE_KEYS = ("raw_bytes", "content_bytes", "transliterated_bytes")
 
 # Bibliographic fields, sparse in both sources. Shipped only when a record
@@ -48,6 +48,8 @@ OPTIONAL_FIELDS = (
     "publisher", "publish_year", "printer", "editor", "second_editor",
     "primary_commentator", "secondary_commentator", "tertiary_commentator",
     "commentary_name", "translator", "books_contributor", "pages",
+    # The site's romanized/English title, for search only (see parse_metadata).
+    "title_eg",
 )
 
 

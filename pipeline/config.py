@@ -26,14 +26,23 @@ DATA_DIR = REPO_ROOT / "data"
 DOCS_DIR = REPO_ROOT / "docs"
 DOCS_DATA_DIR = DOCS_DIR / "data"
 
-# Snapshot-derived, and named so: both files describe the third-party snapshot,
-# not the site. Phase 2's own acquisition writes alongside them, and the prefix
-# keeps which-came-from-where legible once both exist.
-INVENTORY_PATH = DATA_DIR / "snapshot_inventory.jsonl"
-SNAPSHOT_SIZES_PATH = DATA_DIR / "snapshot_text_sizes.jsonl"
+# Everything derived from the third-party snapshot, in one folder, so it is
+# never mistaken for the site's own data and goes in one piece when the
+# snapshot track is retired.
+SNAPSHOT_DATA_DIR = DATA_DIR / "snapshot"
+INVENTORY_PATH = SNAPSHOT_DATA_DIR / "inventory.jsonl"
+SNAPSHOT_SIZES_PATH = SNAPSHOT_DATA_DIR / "text_sizes.jsonl"
+# `make snapshot-analysis`: the snapshot read at its February 2025 commit,
+# against our scrape. Minutes of git archaeology, so the audit reads the cache.
+CHRONOLOGY_STATS_PATH = SNAPSHOT_DATA_DIR / "chronology_stats.json"
+CHRONOLOGY_ROWS_PATH = SNAPSHOT_DATA_DIR / "chronology_vs_scrape.jsonl"
 
 # Site-derived: the site's own catalogue, against the snapshot's partial copy.
 CATALOGUE_PATH = DATA_DIR / "catalogue.jsonl"
+
+# Tier 1: the three shelves' raw JSON pages, one dated directory per walk.
+# Kept as served, so a field we didn't think to parse never costs a re-walk.
+SHELVES_CACHE_DIR = DATA_DIR / "shelves_cache"
 
 # The tier-2 metadata cache, keyed on the catalogue's base64 id. Holds raw HTML
 # rather than parsed fields, so a number we didn't think to extract never costs
@@ -48,9 +57,22 @@ METADATA_LOG_PATH = DATA_DIR / "metadata_fetch_log.jsonl"
 FULLTEXT_CACHE_DIR = DATA_DIR / "fulltext_cache"
 TEXT_SIZES_PATH = DATA_DIR / "text_sizes.jsonl"
 TEXT_LOG_PATH = DATA_DIR / "text_fetch_log.jsonl"
-# Books still unfinished at the chunk ceiling -- the deep tail, and the
-# candidate list for a manual download. Rewritten on every run.
-TEXT_OPEN_PATH = DATA_DIR / "text_open_books.jsonl"
+# What text extraction found in each page beyond the text itself: error pages
+# embedded in the site's stored text, a book served twice, a "Book content is
+# empty." placeholder. One row per extraction, later rows win; the audit reads
+# it, since the extracted text no longer carries the evidence.
+# What the fetcher served, as delivered: one gzipped reader page per book,
+# plus `<serial>.get_unicode/` chunk folders for pages completed elsewhere.
+RAW_CACHE_DIR = DATA_DIR / "raw_cache"
+EXTRACT_NOTES_PATH = DATA_DIR / "text_extract_notes.jsonl"
+# The archive: old versions of books whose change between fetches is worth
+# keeping, chosen by an agent after each refresh (see CLAUDE.md). notes.jsonl
+# has one row per archived file, with when that text was fetched and a
+# `reason`: "emptied" (rows without one are also emptied) means the site no
+# longer serves the text; "extended" and "rewritten" mean its current text
+# differs substantially from the archived one.
+ARCHIVE_DIR = DATA_DIR / "archive"
+ARCHIVE_NOTES_PATH = ARCHIVE_DIR / "notes.jsonl"
 # Parsed metadata lands in docs/, not data/: it is tracked and published, being
 # what the frontend reads, unlike the gitignored cache it is derived from.
 METADATA_PATH = DOCS_DATA_DIR / "metadata.json"

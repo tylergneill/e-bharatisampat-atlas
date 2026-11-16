@@ -55,7 +55,7 @@ working directory; it does no fetching.
 The serial-axis band analysis behind `../serial-bands.md` — dates, formats
 and text sizes per band, plus the serial gap map and the serial/`uploaded`
 agreement rate. Reads `docs/data/metadata.json`, `data/text_sizes.jsonl` and
-`data/text_open_books.jsonl`; **fetches nothing**.
+`data/old_logs_and_reports/text_open_books.jsonl`; **fetches nothing**.
 
     python notes/samples/serial-bands.py            # the report table
     python notes/samples/serial-bands.py --gaps     # gaps + occupancy
